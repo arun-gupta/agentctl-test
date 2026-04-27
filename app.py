@@ -1,75 +1,117 @@
-from flask import Flask, request, jsonify
+import sqlite3
+from flask import Flask, request, jsonify, g
 
 app = Flask(__name__)
-
-# In-memory storage — lost on restart (see issue #1)
-tasks = {}
-_next_id = 1
+app.config["DATABASE"] = "tasks.db"
 
 
-def _next():
-    global _next_id
-    tid = _next_id
-    _next_id += 1
-    return tid
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(app.config["DATABASE"])
+        g.db.row_factory = sqlite3.Row
+        g.db.execute(
+            "CREATE TABLE IF NOT EXISTS tasks ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "title TEXT, "
+            "description TEXT NOT NULL DEFAULT '', "
+            "completed INTEGER NOT NULL DEFAULT 0)"
+        )
+        g.db.commit()
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exc=None):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+def _row(row):
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "description": row["description"],
+        "completed": bool(row["completed"]),
+    }
 
 
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
     # Returns all tasks with no filtering or pagination (see issues #4, #7)
-    return jsonify(list(tasks.values()))
+    rows = get_db().execute("SELECT * FROM tasks").fetchall()
+    return jsonify([_row(r) for r in rows])
 
 
 @app.route("/tasks/<int:task_id>", methods=["GET"])
 def get_task(task_id):
-    task = tasks.get(task_id)
-    if not task:
+    row = get_db().execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if not row:
         return jsonify({"error": "Task not found"}), 404
-    return jsonify(task)
+    return jsonify(_row(row))
 
 
 @app.route("/tasks", methods=["POST"])
 def create_task():
     data = request.get_json(silent=True) or {}
     # Bug: no validation — title can be None or empty (see issue #3)
-    task = {
-        "id": _next(),
-        "title": data.get("title"),
-        "description": data.get("description", ""),
-        "completed": False,
-    }
-    tasks[task["id"]] = task
-    return jsonify(task), 201
+    db = get_db()
+    cur = db.execute(
+        "INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)",
+        (data.get("title"), data.get("description", "")),
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return jsonify(_row(row)), 201
 
 
 @app.route("/tasks/<int:task_id>", methods=["PUT"])
 def update_task(task_id):
-    task = tasks.get(task_id)
-    if not task:
+    db = get_db()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if not row:
         return jsonify({"error": "Task not found"}), 404
     data = request.get_json(silent=True) or {}
-    task["title"] = data.get("title", task["title"])
-    task["description"] = data.get("description", task["description"])
-    task["completed"] = data.get("completed", task["completed"])
-    return jsonify(task)
+    task = _row(row)
+    db.execute(
+        "UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ?",
+        (
+            data.get("title", task["title"]),
+            data.get("description", task["description"]),
+            int(data.get("completed", task["completed"])),
+            task_id,
+        ),
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    return jsonify(_row(row))
 
 
 @app.route("/tasks/<int:task_id>", methods=["DELETE"])
 def delete_task(task_id):
-    task = tasks.pop(task_id, None)
-    if not task:
+    db = get_db()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if not row:
         return jsonify({"error": "Task not found"}), 404
+    db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    db.commit()
     return jsonify({"message": "Task deleted"})
 
 
 # Bug: toggle should be PATCH, not GET — causes caching issues (see issue #4)
 @app.route("/tasks/<int:task_id>/toggle", methods=["GET"])
 def toggle_task(task_id):
-    task = tasks.get(task_id)
-    if not task:
+    db = get_db()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if not row:
         return jsonify({"error": "Task not found"}), 404
-    task["completed"] = not task["completed"]
-    return jsonify(task)
+    new_completed = not bool(row["completed"])
+    db.execute(
+        "UPDATE tasks SET completed = ? WHERE id = ?", (int(new_completed), task_id)
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    return jsonify(_row(row))
 
 
 if __name__ == "__main__":

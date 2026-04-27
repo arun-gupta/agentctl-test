@@ -1,15 +1,10 @@
 import pytest
-from app import app, tasks, _next_id
+from app import app
 
 
 @pytest.fixture(autouse=True)
-def clear_tasks():
-    tasks.clear()
-    global _next_id
-    import app as _app
-    _app._next_id = 1
-    yield
-    tasks.clear()
+def setup_db(tmp_path):
+    app.config["DATABASE"] = str(tmp_path / "test.db")
 
 
 @pytest.fixture
