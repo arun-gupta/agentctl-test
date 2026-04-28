@@ -26,6 +26,19 @@ def test_create_task(client):
     data = r.get_json()
     assert data["title"] == "Buy milk"
     assert data["completed"] is False
+    assert data["priority"] == "medium"
+
+
+def test_create_task_with_priority(client):
+    r = client.post("/tasks", json={"title": "Urgent", "priority": "high"})
+    assert r.status_code == 201
+    assert r.get_json()["priority"] == "high"
+
+
+def test_create_task_with_invalid_priority(client):
+    r = client.post("/tasks", json={"title": "Bad", "priority": "urgent"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "Priority must be one of: low, medium, high"
 
 
 def test_get_task(client):
@@ -33,6 +46,7 @@ def test_get_task(client):
     r = client.get("/tasks/1")
     assert r.status_code == 200
     assert r.get_json()["id"] == 1
+    assert r.get_json()["priority"] == "medium"
 
 
 def test_get_missing_task(client):
@@ -42,10 +56,18 @@ def test_get_missing_task(client):
 
 def test_update_task(client):
     client.post("/tasks", json={"title": "Original"})
-    r = client.put("/tasks/1", json={"title": "Updated", "completed": True})
+    r = client.put("/tasks/1", json={"title": "Updated", "completed": True, "priority": "high"})
     assert r.status_code == 200
     assert r.get_json()["title"] == "Updated"
     assert r.get_json()["completed"] is True
+    assert r.get_json()["priority"] == "high"
+
+
+def test_update_task_with_invalid_priority(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"priority": "urgent"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "Priority must be one of: low, medium, high"
 
 
 def test_delete_task(client):
@@ -53,6 +75,25 @@ def test_delete_task(client):
     r = client.delete("/tasks/1")
     assert r.status_code == 200
     assert client.get("/tasks/1").status_code == 404
+
+
+def test_list_tasks_can_filter_by_priority(client):
+    client.post("/tasks", json={"title": "Low", "priority": "low"})
+    client.post("/tasks", json={"title": "High", "priority": "high"})
+    client.post("/tasks", json={"title": "Medium"})
+
+    r = client.get("/tasks?priority=high")
+
+    assert r.status_code == 200
+    assert r.get_json() == [
+        {"id": 2, "title": "High", "description": "", "completed": False, "priority": "high"}
+    ]
+
+
+def test_list_tasks_with_invalid_priority_filter(client):
+    r = client.get("/tasks?priority=urgent")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "Priority must be one of: low, medium, high"
 
 
 def test_toggle_task(client):
