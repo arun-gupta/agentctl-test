@@ -11,7 +11,7 @@ A minimal REST API for managing tasks (in-memory, single process). Intentional b
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/tasks` | List all tasks, optionally filtered by `priority=low|medium|high` |
-| POST | `/tasks` | Create a task (`priority` defaults to `medium`) |
+| POST | `/tasks` | Create a task (`priority` defaults to `medium`, optional ISO 8601 `due_date`) |
 | GET | `/tasks/:id` | Get a task |
 | PUT | `/tasks/:id` | Update a task |
 | DELETE | `/tasks/:id` | Delete a task |
