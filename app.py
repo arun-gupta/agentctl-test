@@ -46,6 +46,11 @@ def _validate_priority(priority):
     return None
 
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok"})
+
+
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
     priority = request.args.get("priority")
