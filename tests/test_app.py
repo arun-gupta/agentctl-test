@@ -14,6 +14,12 @@ def client():
         yield c
 
 
+def test_health_check(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.get_json() == {"status": "ok"}
+
+
 def test_list_empty(client):
     r = client.get("/tasks")
     assert r.status_code == 200
@@ -183,6 +189,32 @@ def test_stats_counts(client):
         "incomplete": 2,
         "by_priority": {"low": 1, "medium": 2, "high": 1},
     }
+
+
+def test_create_task_with_invalid_json(client):
+    r = client.post("/tasks", data=b"bad", content_type="application/json")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "request body must be valid JSON"
+
+
+def test_create_task_with_empty_body_and_json_content_type(client):
+    r = client.post("/tasks", data=b"", content_type="application/json")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title is required"
+
+
+def test_update_task_with_invalid_json(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", data=b"bad", content_type="application/json")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "request body must be valid JSON"
+
+
+def test_update_task_with_empty_body_and_json_content_type(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", data=b"", content_type="application/json")
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "Original"
 
 
 def test_stats_all_completed(client):

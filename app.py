@@ -73,6 +73,10 @@ def _parse_due_date(raw):
     return None, value
 
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok"})
+
 
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
@@ -129,7 +133,10 @@ def get_task(task_id):
 
 @app.route("/tasks", methods=["POST"])
 def create_task():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if data is None and request.is_json and request.get_data():
+        return jsonify({"error": "request body must be valid JSON"}), 400
+    data = data or {}
     priority = data.get("priority", "medium")
     error = _validate_priority(priority)
     if error:
@@ -161,7 +168,10 @@ def update_task(task_id):
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not row:
         return jsonify({"error": "Task not found"}), 404
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if data is None and request.is_json and request.get_data():
+        return jsonify({"error": "request body must be valid JSON"}), 400
+    data = data or {}
 
     if "priority" in data:
         error = _validate_priority(data["priority"])
