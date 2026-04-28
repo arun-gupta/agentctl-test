@@ -98,9 +98,15 @@ def test_list_tasks_with_invalid_priority_filter(client):
 
 def test_toggle_task(client):
     client.post("/tasks", json={"title": "Toggle me"})
-    r = client.get("/tasks/1/toggle")  # NOTE: uses GET — see issue #4
+    r = client.patch("/tasks/1/toggle")
     assert r.status_code == 200
     assert r.get_json()["completed"] is True
+
+
+def test_toggle_task_get_not_allowed(client):
+    client.post("/tasks", json={"title": "Toggle me"})
+    r = client.get("/tasks/1/toggle")
+    assert r.status_code == 405
 
 
 def test_create_task_without_title_should_fail(client):

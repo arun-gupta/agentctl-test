@@ -136,8 +136,8 @@ def delete_task(task_id):
     return jsonify({"message": "Task deleted"})
 
 
-# Bug: toggle should be PATCH, not GET — causes caching issues (see issue #4)
-@app.route("/tasks/<int:task_id>/toggle", methods=["GET"])
+# Toggle mutates server state, so it must not be exposed as GET.
+@app.route("/tasks/<int:task_id>/toggle", methods=["PATCH"])
 def toggle_task(task_id):
     db = get_db()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
