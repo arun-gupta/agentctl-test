@@ -102,7 +102,7 @@ def get_task(task_id):
 @app.route("/tasks", methods=["POST"])
 def create_task():
     data = request.get_json(silent=True)
-    if data is None and request.is_json:
+    if data is None and request.is_json and request.get_data():
         return jsonify({"error": "request body must be valid JSON"}), 400
     data = data or {}
     priority = data.get("priority", "medium")
@@ -133,7 +133,7 @@ def update_task(task_id):
     if not row:
         return jsonify({"error": "Task not found"}), 404
     data = request.get_json(silent=True)
-    if data is None and request.is_json:
+    if data is None and request.is_json and request.get_data():
         return jsonify({"error": "request body must be valid JSON"}), 400
     data = data or {}
 
