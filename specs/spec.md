@@ -43,12 +43,13 @@ def get_task_stats():
     return jsonify({"total": total, "completed": completed, "incomplete": incomplete, "by_priority": by_priority})
 ```
 
-**`tests/test_app.py`** — add two new test functions:
+**`tests/test_app.py`** — add three new test functions:
 
 - `test_stats_empty` — calls `GET /tasks/stats` with no tasks; asserts all counts are zero.
 - `test_stats_counts` — creates tasks with varied priorities and completion states; toggles some; asserts each field in the response matches expected values.
+- `test_stats_all_completed` — creates several tasks, marks all of them completed, and asserts `incomplete=0` and `completed=total`.
 
-No new files, no schema changes, no dependency changes.
+No new application/runtime files, no schema changes, no dependency changes.
 
 ## Test Cases
 
