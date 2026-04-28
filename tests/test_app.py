@@ -119,3 +119,45 @@ def test_create_task_blank_title_should_fail(client):
     r = client.post("/tasks", json={"title": "   "})
     assert r.status_code == 400
     assert r.get_json()["error"] == "title must not be blank"
+
+
+def test_stats_empty(client):
+    r = client.get("/tasks/stats")
+    assert r.status_code == 200
+    assert r.get_json() == {
+        "total": 0,
+        "completed": 0,
+        "incomplete": 0,
+        "by_priority": {"low": 0, "medium": 0, "high": 0},
+    }
+
+
+def test_stats_counts(client):
+    client.post("/tasks", json={"title": "A", "priority": "low"})
+    client.post("/tasks", json={"title": "B", "priority": "medium"})
+    client.post("/tasks", json={"title": "C", "priority": "medium"})
+    client.post("/tasks", json={"title": "D", "priority": "high"})
+    client.patch("/tasks/2/toggle")
+    client.patch("/tasks/4/toggle")
+
+    r = client.get("/tasks/stats")
+    assert r.status_code == 200
+    assert r.get_json() == {
+        "total": 4,
+        "completed": 2,
+        "incomplete": 2,
+        "by_priority": {"low": 1, "medium": 2, "high": 1},
+    }
+
+
+def test_stats_all_completed(client):
+    client.post("/tasks", json={"title": "A", "priority": "low"})
+    client.post("/tasks", json={"title": "B", "priority": "high"})
+    client.patch("/tasks/1/toggle")
+    client.patch("/tasks/2/toggle")
+
+    r = client.get("/tasks/stats")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["incomplete"] == 0
+    assert data["completed"] == data["total"]

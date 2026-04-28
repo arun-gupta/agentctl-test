@@ -64,6 +64,33 @@ def list_tasks():
     return jsonify([_row(r) for r in rows])
 
 
+@app.route("/tasks/stats", methods=["GET"])
+def get_task_stats():
+    db = get_db()
+    rows = db.execute("SELECT completed, COUNT(*) as cnt FROM tasks GROUP BY completed").fetchall()
+    completed = 0
+    incomplete = 0
+    for row in rows:
+        if row["completed"]:
+            completed = row["cnt"]
+        else:
+            incomplete = row["cnt"]
+
+    priority_rows = db.execute(
+        "SELECT priority, COUNT(*) as cnt FROM tasks GROUP BY priority"
+    ).fetchall()
+    by_priority = {"low": 0, "medium": 0, "high": 0}
+    for row in priority_rows:
+        by_priority[row["priority"]] = row["cnt"]
+
+    return jsonify({
+        "total": completed + incomplete,
+        "completed": completed,
+        "incomplete": incomplete,
+        "by_priority": by_priority,
+    })
+
+
 @app.route("/tasks/<int:task_id>", methods=["GET"])
 def get_task(task_id):
     row = get_db().execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
