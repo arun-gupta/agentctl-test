@@ -103,9 +103,13 @@ def test_toggle_task(client):
     assert r.get_json()["completed"] is True
 
 
-# Known failures that map to open issues
 def test_create_task_without_title_should_fail(client):
-    # Issue #3: no validation — this currently succeeds with title=None
     r = client.post("/tasks", json={})
-    # Should return 400, but currently returns 201 (bug)
-    assert r.status_code == 201  # change to 400 once issue #3 is fixed
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title is required"
+
+
+def test_create_task_blank_title_should_fail(client):
+    r = client.post("/tasks", json={"title": "   "})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must not be blank"
