@@ -150,6 +150,19 @@ def test_stats_counts(client):
     }
 
 
+def test_create_task_with_invalid_json(client):
+    r = client.post("/tasks", data=b"bad", content_type="application/json")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "request body must be valid JSON"
+
+
+def test_update_task_with_invalid_json(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", data=b"bad", content_type="application/json")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "request body must be valid JSON"
+
+
 def test_stats_all_completed(client):
     client.post("/tasks", json={"title": "A", "priority": "low"})
     client.post("/tasks", json={"title": "B", "priority": "high"})
