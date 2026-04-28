@@ -147,6 +147,8 @@ def create_task():
         return jsonify({"error": "title is required"}), 400
     if not isinstance(title, str) or not title.strip():
         return jsonify({"error": "title must not be blank"}), 400
+    if len(title) > 200:
+        return jsonify({"error": "title must not exceed 200 characters"}), 400
 
     error, due_date = _parse_due_date(data.get("due_date"))
     if error:
@@ -177,6 +179,13 @@ def update_task(task_id):
         error = _validate_priority(data["priority"])
         if error:
             return error
+
+    if "title" in data:
+        title_value = data["title"]
+        if not isinstance(title_value, str) or not title_value.strip():
+            return jsonify({"error": "title must not be blank"}), 400
+        if len(title_value) > 200:
+            return jsonify({"error": "title must not exceed 200 characters"}), 400
 
     task = _row(row)
 
