@@ -111,6 +111,15 @@ def test_update_task_with_invalid_priority(client):
     assert r.get_json()["error"] == "Priority must be one of: low, medium, high"
 
 
+def test_update_task_title_too_long(client):
+    client.post("/tasks", json={"title": "Original"})
+    long_title = "a" * 201
+    r = client.put("/tasks/1", json={"title": long_title})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must be at most 200 characters"
+
+
+
 def test_delete_task(client):
     client.post("/tasks", json={"title": "Temporary"})
     r = client.delete("/tasks/1")
@@ -160,6 +169,21 @@ def test_create_task_blank_title_should_fail(client):
     r = client.post("/tasks", json={"title": "   "})
     assert r.status_code == 400
     assert r.get_json()["error"] == "title must not be blank"
+
+
+
+def test_create_task_title_at_limit_succeeds(client):
+    title = "a" * 200
+    r = client.post("/tasks", json={"title": title})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == title
+
+
+def test_create_task_title_too_long(client):
+    long_title = "a" * 201
+    r = client.post("/tasks", json={"title": long_title})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must be at most 200 characters"
 
 
 def test_stats_empty(client):

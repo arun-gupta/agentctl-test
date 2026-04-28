@@ -6,6 +6,7 @@ app = Flask(__name__)
 app.config["DATABASE"] = "tasks.db"
 
 PRIORITY_LEVELS = {"low", "medium", "high"}
+MAX_TITLE_LENGTH = 200
 
 
 def get_db():
@@ -73,10 +74,21 @@ def _parse_due_date(raw):
     return None, value
 
 
+def _validate_title(title, *, required=False):
+    if title is None:
+        if required:
+            return jsonify({"error": "title is required"}), 400
+        return jsonify({"error": "title must not be blank"}), 400
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({"error": "title must not be blank"}), 400
+    if len(title) > MAX_TITLE_LENGTH:
+        return jsonify({"error": f"title must be at most {MAX_TITLE_LENGTH} characters"}), 400
+    return None
+
+
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok"})
-
 
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
@@ -143,10 +155,9 @@ def create_task():
         return error
 
     title = data.get("title")
-    if title is None:
-        return jsonify({"error": "title is required"}), 400
-    if not isinstance(title, str) or not title.strip():
-        return jsonify({"error": "title must not be blank"}), 400
+    error = _validate_title(title, required=True)
+    if error:
+        return error
 
     error, due_date = _parse_due_date(data.get("due_date"))
     if error:
@@ -172,6 +183,11 @@ def update_task(task_id):
     if data is None and request.is_json and request.get_data():
         return jsonify({"error": "request body must be valid JSON"}), 400
     data = data or {}
+
+    if "title" in data:
+        error = _validate_title(data["title"])
+        if error:
+            return error
 
     if "priority" in data:
         error = _validate_priority(data["priority"])
