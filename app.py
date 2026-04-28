@@ -80,11 +80,16 @@ def create_task():
     if error:
         return error
 
-    # Bug: no validation — title can be None or empty (see issue #3)
+    title = data.get("title")
+    if title is None:
+        return jsonify({"error": "title is required"}), 400
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({"error": "title must not be blank"}), 400
+
     db = get_db()
     cur = db.execute(
         "INSERT INTO tasks (title, description, completed, priority) VALUES (?, ?, 0, ?)",
-        (data.get("title"), data.get("description", ""), priority),
+        (title, data.get("description", ""), priority),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
