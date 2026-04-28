@@ -27,12 +27,15 @@ def test_create_task(client):
     assert data["title"] == "Buy milk"
     assert data["completed"] is False
     assert data["priority"] == "medium"
+    assert data["due_date"] is None
 
 
 def test_create_task_with_priority(client):
     r = client.post("/tasks", json={"title": "Urgent", "priority": "high"})
     assert r.status_code == 201
-    assert r.get_json()["priority"] == "high"
+    data = r.get_json()
+    assert data["priority"] == "high"
+    assert data["due_date"] is None
 
 
 def test_create_task_with_invalid_priority(client):
@@ -41,12 +44,42 @@ def test_create_task_with_invalid_priority(client):
     assert r.get_json()["error"] == "Priority must be one of: low, medium, high"
 
 
+
+def test_create_task_with_due_date(client):
+    r = client.post("/tasks", json={"title": "Pay bills", "due_date": "2024-05-01"})
+    assert r.status_code == 201
+    data = r.get_json()
+    assert data["due_date"] == "2024-05-01"
+
+
+def test_create_task_with_invalid_due_date(client):
+    r = client.post("/tasks", json={"title": "Bad date", "due_date": "not-a-date"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "due_date must be an ISO 8601 string"
+
+
+def test_update_task_due_date(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"due_date": "2024-05-02T09:00:00Z"})
+    assert r.status_code == 200
+    assert r.get_json()["due_date"] == "2024-05-02T09:00:00Z"
+
+
+def test_update_task_clear_due_date(client):
+    client.post("/tasks", json={"title": "With date", "due_date": "2024-12-31"})
+    r = client.put("/tasks/1", json={"due_date": None})
+    assert r.status_code == 200
+    assert r.get_json()["due_date"] is None
+
+
 def test_get_task(client):
     client.post("/tasks", json={"title": "Hello"})
     r = client.get("/tasks/1")
     assert r.status_code == 200
-    assert r.get_json()["id"] == 1
-    assert r.get_json()["priority"] == "medium"
+    data = r.get_json()
+    assert data["id"] == 1
+    assert data["priority"] == "medium"
+    assert data["due_date"] is None
 
 
 def test_get_missing_task(client):
@@ -58,9 +91,11 @@ def test_update_task(client):
     client.post("/tasks", json={"title": "Original"})
     r = client.put("/tasks/1", json={"title": "Updated", "completed": True, "priority": "high"})
     assert r.status_code == 200
-    assert r.get_json()["title"] == "Updated"
-    assert r.get_json()["completed"] is True
-    assert r.get_json()["priority"] == "high"
+    data = r.get_json()
+    assert data["title"] == "Updated"
+    assert data["completed"] is True
+    assert data["priority"] == "high"
+    assert data["due_date"] is None
 
 
 def test_update_task_with_invalid_priority(client):
@@ -86,7 +121,7 @@ def test_list_tasks_can_filter_by_priority(client):
 
     assert r.status_code == 200
     assert r.get_json() == [
-        {"id": 2, "title": "High", "description": "", "completed": False, "priority": "high"}
+        {"id": 2, "title": "High", "description": "", "completed": False, "priority": "high", "due_date": None}
     ]
 
 

@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 from flask import Flask, request, jsonify, g
 
 app = Flask(__name__)
@@ -11,15 +12,20 @@ def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(app.config["DATABASE"])
         g.db.row_factory = sqlite3.Row
-        g.db.execute(
+        db = g.db
+        db.execute(
             "CREATE TABLE IF NOT EXISTS tasks ("
             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
             "title TEXT, "
             "description TEXT NOT NULL DEFAULT '', "
             "completed INTEGER NOT NULL DEFAULT 0, "
-            "priority TEXT NOT NULL DEFAULT 'medium')"
+            "priority TEXT NOT NULL DEFAULT 'medium', "
+            "due_date TEXT)"
         )
-        g.db.commit()
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
+        if "due_date" not in columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN due_date TEXT")
+        db.commit()
     return g.db
 
 
@@ -37,6 +43,7 @@ def _row(row):
         "description": row["description"],
         "completed": bool(row["completed"]),
         "priority": row["priority"],
+        "due_date": row["due_date"],
     }
 
 
@@ -44,6 +51,27 @@ def _validate_priority(priority):
     if priority not in PRIORITY_LEVELS:
         return jsonify({"error": "Priority must be one of: low, medium, high"}), 400
     return None
+
+
+def _due_date_error():
+    return jsonify({"error": "due_date must be an ISO 8601 string"}), 400
+
+
+def _parse_due_date(raw):
+    if raw is None:
+        return None, None
+    if not isinstance(raw, str):
+        return _due_date_error(), None
+    value = raw.strip()
+    if not value:
+        return _due_date_error(), None
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        datetime.fromisoformat(normalized)
+    except ValueError:
+        return _due_date_error(), None
+    return None, value
+
 
 
 @app.route("/tasks", methods=["GET"])
@@ -113,10 +141,14 @@ def create_task():
     if not isinstance(title, str) or not title.strip():
         return jsonify({"error": "title must not be blank"}), 400
 
+    error, due_date = _parse_due_date(data.get("due_date"))
+    if error:
+        return error
+
     db = get_db()
     cur = db.execute(
-        "INSERT INTO tasks (title, description, completed, priority) VALUES (?, ?, 0, ?)",
-        (title, data.get("description", ""), priority),
+        "INSERT INTO tasks (title, description, completed, priority, due_date) VALUES (?, ?, 0, ?, ?)",
+        (title, data.get("description", ""), priority, due_date),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -137,13 +169,22 @@ def update_task(task_id):
             return error
 
     task = _row(row)
+
+    due_date = task["due_date"]
+    if "due_date" in data:
+        error, parsed_due_date = _parse_due_date(data["due_date"])
+        if error:
+            return error
+        due_date = parsed_due_date
+
     db.execute(
-        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ? WHERE id = ?",
         (
             data.get("title", task["title"]),
             data.get("description", task["description"]),
             int(data.get("completed", task["completed"])),
             data.get("priority", task["priority"]),
+            due_date,
             task_id,
         ),
     )
