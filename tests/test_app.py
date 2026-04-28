@@ -14,6 +14,12 @@ def client():
         yield c
 
 
+def test_health_check(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.get_json() == {"status": "ok"}
+
+
 def test_list_empty(client):
     r = client.get("/tasks")
     assert r.status_code == 200
