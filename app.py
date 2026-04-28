@@ -7,6 +7,10 @@ app.config["DATABASE"] = "tasks.db"
 
 PRIORITY_LEVELS = {"low", "medium", "high"}
 
+MAX_TITLE_LENGTH = 200
+
+
+
 
 def get_db():
     if "db" not in g:
@@ -51,6 +55,15 @@ def _validate_priority(priority):
     if priority not in PRIORITY_LEVELS:
         return jsonify({"error": "Priority must be one of: low, medium, high"}), 400
     return None
+
+
+def _validate_title_value(title):
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({"error": "title must not be blank"}), 400
+    if len(title) > MAX_TITLE_LENGTH:
+        return jsonify({"error": f"title must not exceed {MAX_TITLE_LENGTH} characters"}), 400
+    return None
+
 
 
 def _due_date_error():
@@ -145,8 +158,9 @@ def create_task():
     title = data.get("title")
     if title is None:
         return jsonify({"error": "title is required"}), 400
-    if not isinstance(title, str) or not title.strip():
-        return jsonify({"error": "title must not be blank"}), 400
+    error = _validate_title_value(title)
+    if error:
+        return error
 
     error, due_date = _parse_due_date(data.get("due_date"))
     if error:
@@ -175,6 +189,11 @@ def update_task(task_id):
 
     if "priority" in data:
         error = _validate_priority(data["priority"])
+        if error:
+            return error
+
+    if "title" in data:
+        error = _validate_title_value(data["title"])
         if error:
             return error
 
