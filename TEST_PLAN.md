@@ -31,7 +31,7 @@
 | `start --sdd=plain --headless` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=plain --agent codex` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
-| `start --notify` | ⬜ | [start --notify](#start---notify) |
+| `start --notify` | ✅ | [start --notify](#start---notify) |
 | `start <url>` | ⬜ | [start \<url\>](#start-url--full-github-url) |
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ⬜ | [logs](#logs) |
@@ -135,7 +135,7 @@ Send a native desktop notification when a headless agent finishes. Also set repo
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 35 --headless --notify` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl start 35 --headless --notify` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
 
 ---
 
