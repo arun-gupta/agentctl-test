@@ -22,7 +22,7 @@
 | `start --agent copilot` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent gemini` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent opencode` | ⬜ | [start --agent](#start---agent-name) |
-| `start --agent openhands` | ⬜ | [start --agent](#start---agent-name) |
+| `start --agent openhands` | ✅ | [start --agent](#start---agent-name) |
 | `start --sdd=plain` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
 | `start --notify` | ⬜ | [start --notify](#start---notify) |
@@ -102,7 +102,7 @@ agentctl start <issue> --agent <name>
 | ⬜ | copilot | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) |
 | ⬜ | gemini | [#32](https://github.com/arun-gupta/agentctl-test/issues/32) |
 | ⬜ | opencode | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
-| ⬜ | openhands | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) |
+| ✅ | openhands | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) |
 
 ---
 
