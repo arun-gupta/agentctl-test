@@ -142,7 +142,6 @@ Start from any directory without `cd`-ing into the repo first.
 | Variant | Status |
 |---------|--------|
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/44` | ⬜ |
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/29` | ⬜ |
 
 ---
 
