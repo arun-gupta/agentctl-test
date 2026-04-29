@@ -145,6 +145,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "completed": False,
             "priority": "high",
             "due_date": None,
+            "notes": None,
             "created_at": high["created_at"],
         }
     ]
@@ -464,3 +465,147 @@ def test_pagination_with_priority_filter(client):
     assert data["pages"] == 2
     assert len(data["items"]) == 2
     assert all(item["priority"] == "high" for item in data["items"])
+
+
+# --- notes field tests ---
+
+def test_create_task_with_notes(client):
+    r = client.post("/tasks", json={"title": "Task", "notes": "some notes here"})
+    assert r.status_code == 201
+    assert r.get_json()["notes"] == "some notes here"
+
+
+def test_create_task_without_notes_defaults_to_null(client):
+    r = client.post("/tasks", json={"title": "Task"})
+    assert r.status_code == 201
+    assert r.get_json()["notes"] is None
+
+
+def test_create_task_with_explicit_null_notes(client):
+    r = client.post("/tasks", json={"title": "Task", "notes": None})
+    assert r.status_code == 201
+    assert r.get_json()["notes"] is None
+
+
+def test_create_task_notes_long_multiline(client):
+    long_notes = "line\n" * 1000 + "end"
+    r = client.post("/tasks", json={"title": "Task", "notes": long_notes})
+    assert r.status_code == 201
+    assert r.get_json()["notes"] == long_notes
+
+
+def test_create_task_notes_unicode(client):
+    notes = "emoji 🎉 CJK 你好 newline\n"
+    r = client.post("/tasks", json={"title": "Task", "notes": notes})
+    assert r.status_code == 201
+    assert r.get_json()["notes"] == notes
+
+
+def test_create_task_notes_integer_returns_400(client):
+    r = client.post("/tasks", json={"title": "Task", "notes": 42})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "notes must be a string or null"
+
+
+def test_create_task_notes_list_returns_400(client):
+    r = client.post("/tasks", json={"title": "Task", "notes": ["a", "b"]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "notes must be a string or null"
+
+
+def test_get_task_includes_notes(client):
+    client.post("/tasks", json={"title": "Task", "notes": "detail here"})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["notes"] == "detail here"
+
+
+def test_get_task_notes_null_when_not_set(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["notes"] is None
+
+
+def test_list_tasks_includes_notes(client):
+    client.post("/tasks", json={"title": "A", "notes": "n1"})
+    client.post("/tasks", json={"title": "B"})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    assert items[0]["notes"] == "n1"
+    assert items[1]["notes"] is None
+
+
+def test_list_tasks_filtered_includes_notes(client):
+    client.post("/tasks", json={"title": "H", "priority": "high", "notes": "high note"})
+    client.post("/tasks", json={"title": "L", "priority": "low"})
+    r = client.get("/tasks?priority=high")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    assert len(items) == 1
+    assert items[0]["notes"] == "high note"
+
+
+def test_list_tasks_paginated_includes_notes(client):
+    client.post("/tasks", json={"title": "A", "notes": "note A"})
+    client.post("/tasks", json={"title": "B", "notes": "note B"})
+    client.post("/tasks", json={"title": "C"})
+    r = client.get("/tasks?page=1&per_page=2")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    assert len(items) == 2
+    assert all("notes" in item for item in items)
+
+
+def test_update_task_notes_to_new_value(client):
+    client.post("/tasks", json={"title": "Task", "notes": "old"})
+    r = client.put("/tasks/1", json={"notes": "new value"})
+    assert r.status_code == 200
+    assert r.get_json()["notes"] == "new value"
+
+
+def test_update_task_notes_to_null_clears_it(client):
+    client.post("/tasks", json={"title": "Task", "notes": "has notes"})
+    r = client.put("/tasks/1", json={"notes": None})
+    assert r.status_code == 200
+    assert r.get_json()["notes"] is None
+
+
+def test_update_task_omitting_notes_preserves_value(client):
+    client.post("/tasks", json={"title": "Task", "notes": "keep me"})
+    r = client.put("/tasks/1", json={"title": "Updated title"})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["title"] == "Updated title"
+    assert data["notes"] == "keep me"
+
+
+def test_update_other_fields_preserves_notes(client):
+    client.post("/tasks", json={"title": "Task", "notes": "preserved"})
+    r = client.put("/tasks/1", json={"priority": "high", "completed": True})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["priority"] == "high"
+    assert data["notes"] == "preserved"
+
+
+def test_update_task_set_notes_when_previously_null(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"notes": "now has notes"})
+    assert r.status_code == 200
+    assert r.get_json()["notes"] == "now has notes"
+
+
+def test_update_task_notes_integer_returns_400(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"notes": 99})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "notes must be a string or null"
+
+
+def test_toggle_preserves_notes(client):
+    client.post("/tasks", json={"title": "Task", "notes": "still here"})
+    r = client.patch("/tasks/1/toggle")
+    assert r.status_code == 200
+    assert r.get_json()["notes"] == "still here"
