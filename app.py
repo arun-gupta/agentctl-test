@@ -7,6 +7,15 @@ app = Flask(__name__)
 app.config["DATABASE"] = "tasks.db"
 
 PRIORITY_LEVELS = {"low", "medium", "high"}
+SORT_FIELDS = {"created_at", "priority", "title"}
+SORT_ORDERS = {"asc", "desc"}
+PRIORITY_SORT_SQL = (
+    "CASE priority "
+    "WHEN 'low' THEN 1 "
+    "WHEN 'medium' THEN 2 "
+    "WHEN 'high' THEN 3 "
+    "END"
+)
 
 
 def get_db():
@@ -62,6 +71,27 @@ def _validate_priority(priority):
     return None
 
 
+def _validate_sort(sort):
+    if sort not in SORT_FIELDS:
+        return jsonify({"error": "sort must be one of: created_at, priority, title"}), 400
+    return None
+
+
+def _validate_order(order):
+    if order not in SORT_ORDERS:
+        return jsonify({"error": "order must be one of: asc, desc"}), 400
+    return None
+
+
+def _tasks_order_by(sort, order):
+    direction = order.upper()
+    if sort == "priority":
+        return f"{PRIORITY_SORT_SQL} {direction}, id ASC"
+    if sort == "title":
+        return f"LOWER(title) {direction}, id ASC"
+    return f"created_at {direction}, id {direction}"
+
+
 def _due_date_error():
     return jsonify({"error": "due_date must be an ISO 8601 string"}), 400
 
@@ -92,6 +122,8 @@ def list_tasks():
     priority = request.args.get("priority")
     page_str = request.args.get("page", "1")
     per_page_str = request.args.get("per_page", "20")
+    sort = request.args.get("sort", "created_at")
+    order = request.args.get("order", "asc")
 
     try:
         page = int(page_str)
@@ -107,23 +139,31 @@ def list_tasks():
     if per_page < 1:
         return jsonify({"error": "per_page must be a positive integer"}), 400
 
+    error = _validate_sort(sort)
+    if error:
+        return error
+
+    error = _validate_order(order)
+    if error:
+        return error
+
+    order_by = _tasks_order_by(sort, order)
+    db = get_db()
     if priority is not None:
         error = _validate_priority(priority)
         if error:
             return error
-        db = get_db()
         total = db.execute(
             "SELECT COUNT(*) FROM tasks WHERE priority = ?", (priority,)
         ).fetchone()[0]
         rows = db.execute(
-            "SELECT * FROM tasks WHERE priority = ? LIMIT ? OFFSET ?",
+            f"SELECT * FROM tasks WHERE priority = ? ORDER BY {order_by} LIMIT ? OFFSET ?",
             (priority, per_page, (page - 1) * per_page),
         ).fetchall()
     else:
-        db = get_db()
         total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
         rows = db.execute(
-            "SELECT * FROM tasks LIMIT ? OFFSET ?",
+            f"SELECT * FROM tasks ORDER BY {order_by} LIMIT ? OFFSET ?",
             (per_page, (page - 1) * per_page),
         ).fetchall()
 

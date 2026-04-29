@@ -1,5 +1,5 @@
 import pytest
-from app import app
+from app import app, get_db
 
 
 @pytest.fixture(autouse=True)
@@ -157,6 +157,69 @@ def test_list_tasks_with_invalid_priority_filter(client):
     r = client.get("/tasks?priority=urgent")
     assert r.status_code == 400
     assert r.get_json()["error"] == "Priority must be one of: low, medium, high"
+
+
+def test_list_tasks_default_sort_is_created_at_ascending(client):
+    client.post("/tasks", json={"title": "First"})
+    client.post("/tasks", json={"title": "Second"})
+    client.post("/tasks", json={"title": "Third"})
+
+    r = client.get("/tasks")
+
+    assert r.status_code == 200
+    assert [item["title"] for item in r.get_json()["items"]] == ["First", "Second", "Third"]
+
+
+def test_list_tasks_can_sort_by_priority_desc(client):
+    client.post("/tasks", json={"title": "Low", "priority": "low"})
+    client.post("/tasks", json={"title": "Medium"})
+    client.post("/tasks", json={"title": "High", "priority": "high"})
+
+    r = client.get("/tasks?sort=priority&order=desc")
+
+    assert r.status_code == 200
+    assert [item["priority"] for item in r.get_json()["items"]] == ["high", "medium", "low"]
+
+
+def test_list_tasks_can_sort_by_title_ascending(client):
+    client.post("/tasks", json={"title": "Zulu"})
+    client.post("/tasks", json={"title": "alpha"})
+    client.post("/tasks", json={"title": "Bravo"})
+
+    r = client.get("/tasks?sort=title&order=asc")
+
+    assert r.status_code == 200
+    assert [item["title"] for item in r.get_json()["items"]] == ["alpha", "Bravo", "Zulu"]
+
+
+def test_list_tasks_can_sort_by_created_at_desc(client):
+    client.post("/tasks", json={"title": "Oldest"})
+    client.post("/tasks", json={"title": "Middle"})
+    client.post("/tasks", json={"title": "Newest"})
+
+    with app.app_context():
+        db = get_db()
+        db.execute("UPDATE tasks SET created_at = ? WHERE id = ?", ("2024-01-01T08:00:00", 1))
+        db.execute("UPDATE tasks SET created_at = ? WHERE id = ?", ("2024-01-02T08:00:00", 2))
+        db.execute("UPDATE tasks SET created_at = ? WHERE id = ?", ("2024-01-03T08:00:00", 3))
+        db.commit()
+
+    r = client.get("/tasks?sort=created_at&order=desc")
+
+    assert r.status_code == 200
+    assert [item["title"] for item in r.get_json()["items"]] == ["Newest", "Middle", "Oldest"]
+
+
+def test_list_tasks_rejects_invalid_sort(client):
+    r = client.get("/tasks?sort=due_date")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "sort must be one of: created_at, priority, title"
+
+
+def test_list_tasks_rejects_invalid_order(client):
+    r = client.get("/tasks?order=up")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "order must be one of: asc, desc"
 
 
 def test_toggle_task(client):
