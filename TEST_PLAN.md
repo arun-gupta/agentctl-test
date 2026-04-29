@@ -31,8 +31,8 @@
 | `logs --lines N` | ⬜ | [logs](#logs) |
 | `logs --no-follow` | ⬜ | [logs](#logs) |
 | `attach` | ⬜ | [attach](#attach) |
-| `resume` (approve) | ⬜ | [resume](#resume) |
-| `resume "feedback"` | ⬜ | [resume](#resume) |
+| `resume` (approve) | ✅ | [resume](#resume) |
+| `resume "feedback"` | ✅ | [resume](#resume) |
 | `resume --headless` | ⬜ | [resume](#resume) |
 | `status` | ⬜ | [status](#status) |
 | `status --verbose` | ⬜ | [status](#status) |
@@ -213,8 +213,8 @@ agentctl resume --headless <issue>              # approve, run in background
 
 | Status | Variant | Issue |
 |--------|---------|-------|
-| ⬜ | approve | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
-| ⬜ | `"feedback"` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
+| ✅ | approve | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
+| ✅ | `"feedback"` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
 | ⬜ | `--headless` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
 
 ---
