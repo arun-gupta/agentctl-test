@@ -69,7 +69,6 @@ Run the agent in the background; output written to `agent.log`.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 3 --headless` | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
-| `agentctl start 35 --headless` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
 
 ---
 
@@ -148,6 +147,8 @@ Start from any directory without `cd`-ing into the repo first.
 
 Stream `agent.log` for a running or finished headless agent.
 
+> **Prerequisite:** run `agentctl start 35 --headless` before testing the #35 rows below.
+
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl logs 3` | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
@@ -159,6 +160,8 @@ Stream `agent.log` for a running or finished headless agent.
 ## `attach`
 
 Attach to a running headless agent and exit automatically when it finishes.
+
+> **Prerequisite:** run `agentctl start 35 --headless` before testing this — attach requires the agent to still be running.
 
 | Variant | Issue | Status |
 |---------|-------|--------|
