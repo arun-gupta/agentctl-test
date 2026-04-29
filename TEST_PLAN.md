@@ -135,7 +135,7 @@ Send a native desktop notification when a headless agent finishes. Also set repo
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 35 --headless --notify` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
+| `agentctl start 35 --headless --notify` | 🔴 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
 
 ---
 
@@ -158,8 +158,8 @@ Stream `agent.log` for a running or finished headless agent.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl logs 3` | 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
-| `agentctl logs 35 --lines 100` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
-| `agentctl logs 35 --no-follow` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
+| `agentctl logs 35 --lines 100` | 🔴 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
+| `agentctl logs 35 --no-follow` | 🔴 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
 
 ---
 
@@ -171,7 +171,7 @@ Attach to a running headless agent and exit automatically when it finishes.
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl attach 35` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl attach 35` | 🔴 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
 
 ---
 
