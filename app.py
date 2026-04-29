@@ -221,6 +221,14 @@ def update_task(task_id):
     return jsonify(_row(row))
 
 
+@app.route("/tasks/completed", methods=["DELETE"])
+def delete_completed_tasks():
+    db = get_db()
+    cur = db.execute("DELETE FROM tasks WHERE completed = 1")
+    db.commit()
+    return jsonify({"deleted": cur.rowcount})
+
+
 @app.route("/tasks/<int:task_id>", methods=["DELETE"])
 def delete_task(task_id):
     db = get_db()

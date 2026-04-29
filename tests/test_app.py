@@ -270,6 +270,33 @@ def test_update_task_with_empty_body_and_json_content_type(client):
     assert r.get_json()["title"] == "Original"
 
 
+def test_delete_completed_tasks(client):
+    client.post("/tasks", json={"title": "Done"})
+    client.post("/tasks", json={"title": "Not done"})
+    client.patch("/tasks/1/toggle")
+
+    r = client.delete("/tasks/completed")
+    assert r.status_code == 200
+    assert r.get_json() == {"deleted": 1}
+
+    remaining = client.get("/tasks").get_json()
+    assert len(remaining) == 1
+    assert remaining[0]["title"] == "Not done"
+
+
+def test_delete_completed_tasks_none_exist(client):
+    client.post("/tasks", json={"title": "Not done"})
+    r = client.delete("/tasks/completed")
+    assert r.status_code == 200
+    assert r.get_json() == {"deleted": 0}
+
+
+def test_delete_completed_tasks_empty_db(client):
+    r = client.delete("/tasks/completed")
+    assert r.status_code == 200
+    assert r.get_json() == {"deleted": 0}
+
+
 def test_stats_all_completed(client):
     client.post("/tasks", json={"title": "A", "priority": "low"})
     client.post("/tasks", json={"title": "B", "priority": "high"})
