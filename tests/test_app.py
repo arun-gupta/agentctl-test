@@ -467,6 +467,99 @@ def test_pagination_with_priority_filter(client):
     assert all(item["priority"] == "high" for item in data["items"])
 
 
+# --- Export tests ---
+
+def test_export_content_type(client):
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    assert r.content_type == "text/csv; charset=utf-8"
+
+
+def test_export_content_disposition(client):
+    r = client.get("/tasks/export")
+    assert r.headers["Content-Disposition"] == 'attachment; filename="tasks.csv"'
+
+
+def test_export_empty_returns_header_only(client):
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    lines = r.data.decode().splitlines()
+    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at"]
+
+
+def test_export_includes_all_tasks(client):
+    import csv, io
+    client.post("/tasks", json={"title": "Buy milk", "description": "2% please", "priority": "medium"})
+    client.post("/tasks", json={"title": "Urgent", "priority": "high"})
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert len(rows) == 2
+    assert rows[0]["title"] == "Buy milk"
+    assert rows[0]["description"] == "2% please"
+    assert rows[0]["completed"] == "false"
+    assert rows[0]["priority"] == "medium"
+    assert rows[1]["title"] == "Urgent"
+    assert rows[1]["priority"] == "high"
+
+
+def test_export_completed_field(client):
+    import csv, io
+    client.post("/tasks", json={"title": "Done task"})
+    client.patch("/tasks/1/toggle")
+    r = client.get("/tasks/export")
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["completed"] == "true"
+
+
+def test_export_quotes_commas_and_newlines(client):
+    import csv, io
+    client.post("/tasks", json={"title": "A, B", "description": "line1\nline2"})
+    r = client.get("/tasks/export")
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["title"] == "A, B"
+    assert rows[0]["description"] == "line1\nline2"
+
+
+def test_export_due_date_field(client):
+    import csv, io
+    client.post("/tasks", json={"title": "Pay bills", "due_date": "2024-05-01"})
+    r = client.get("/tasks/export")
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["due_date"] == "2024-05-01"
+
+
+def test_export_null_due_date_is_empty_string(client):
+    import csv, io
+    client.post("/tasks", json={"title": "No date"})
+    r = client.get("/tasks/export")
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["due_date"] == ""
+
+
+def test_export_notes_field(client):
+    import csv, io
+    client.post("/tasks", json={"title": "With notes", "notes": "my note"})
+    r = client.get("/tasks/export")
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["notes"] == "my note"
+
+
+def test_export_null_notes_is_empty_string(client):
+    import csv, io
+    client.post("/tasks", json={"title": "No notes"})
+    r = client.get("/tasks/export")
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["notes"] == ""
+
+
 # --- notes field tests ---
 
 def test_create_task_with_notes(client):
