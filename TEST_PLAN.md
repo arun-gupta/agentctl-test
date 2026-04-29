@@ -19,7 +19,7 @@
 | `start` interactive (claude) | ✅ | [start — basic interactive](#start--basic-interactive) |
 | `start <issue> <slug>` | ✅ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ✅ | [start --headless](#start---headless) |
-| `start --quiet` | ⬜ | [start --quiet](#start---quiet) |
+| `start --quiet` | ✅ | [start --quiet](#start---quiet) |
 | `start --quiet` + Ctrl+C (detach) | ⬜ | [start --quiet](#start---quiet) |
 | `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent codex` | ✅ | [start --agent](#start---agent-name) |
@@ -83,7 +83,7 @@ Ctrl+C in quiet mode detaches without killing the agent — it keeps running in 
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 7 --quiet` | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ⬜ |
+| `agentctl start 7 --quiet` | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
 | `agentctl start 7 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ⬜ |
 
 ---
