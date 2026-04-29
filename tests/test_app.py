@@ -34,6 +34,7 @@ def test_create_task(client):
     assert data["completed"] is False
     assert data["priority"] == "medium"
     assert data["due_date"] is None
+    assert data["created_at"]
 
 
 def test_create_task_with_priority(client):
@@ -42,6 +43,7 @@ def test_create_task_with_priority(client):
     data = r.get_json()
     assert data["priority"] == "high"
     assert data["due_date"] is None
+    assert data["created_at"]
 
 
 def test_create_task_with_invalid_priority(client):
@@ -56,6 +58,7 @@ def test_create_task_with_due_date(client):
     assert r.status_code == 201
     data = r.get_json()
     assert data["due_date"] == "2024-05-01"
+    assert data["created_at"]
 
 
 def test_create_task_with_invalid_due_date(client):
@@ -79,13 +82,14 @@ def test_update_task_clear_due_date(client):
 
 
 def test_get_task(client):
-    client.post("/tasks", json={"title": "Hello"})
+    created = client.post("/tasks", json={"title": "Hello"}).get_json()
     r = client.get("/tasks/1")
     assert r.status_code == 200
     data = r.get_json()
     assert data["id"] == 1
     assert data["priority"] == "medium"
     assert data["due_date"] is None
+    assert data["created_at"] == created["created_at"]
 
 
 def test_get_missing_task(client):
@@ -94,7 +98,7 @@ def test_get_missing_task(client):
 
 
 def test_update_task(client):
-    client.post("/tasks", json={"title": "Original"})
+    created = client.post("/tasks", json={"title": "Original"}).get_json()
     r = client.put("/tasks/1", json={"title": "Updated", "completed": True, "priority": "high"})
     assert r.status_code == 200
     data = r.get_json()
@@ -102,6 +106,7 @@ def test_update_task(client):
     assert data["completed"] is True
     assert data["priority"] == "high"
     assert data["due_date"] is None
+    assert data["created_at"] == created["created_at"]
 
 
 def test_update_task_with_invalid_priority(client):
@@ -119,16 +124,26 @@ def test_delete_task(client):
 
 
 def test_list_tasks_can_filter_by_priority(client):
-    client.post("/tasks", json={"title": "Low", "priority": "low"})
-    client.post("/tasks", json={"title": "High", "priority": "high"})
-    client.post("/tasks", json={"title": "Medium"})
+    low = client.post("/tasks", json={"title": "Low", "priority": "low"}).get_json()
+    high = client.post("/tasks", json={"title": "High", "priority": "high"}).get_json()
+    medium = client.post("/tasks", json={"title": "Medium"}).get_json()
 
     r = client.get("/tasks?priority=high")
 
     assert r.status_code == 200
     assert r.get_json() == [
-        {"id": 2, "title": "High", "description": "", "completed": False, "priority": "high", "due_date": None}
+        {
+            "id": 2,
+            "title": "High",
+            "description": "",
+            "completed": False,
+            "priority": "high",
+            "due_date": None,
+            "created_at": high["created_at"],
+        }
     ]
+    assert low["created_at"]
+    assert medium["created_at"]
 
 
 def test_list_tasks_with_invalid_priority_filter(client):
@@ -138,10 +153,25 @@ def test_list_tasks_with_invalid_priority_filter(client):
 
 
 def test_toggle_task(client):
-    client.post("/tasks", json={"title": "Toggle me"})
+    created = client.post("/tasks", json={"title": "Toggle me"}).get_json()
     r = client.patch("/tasks/1/toggle")
     assert r.status_code == 200
     assert r.get_json()["completed"] is True
+    assert r.get_json()["created_at"] == created["created_at"]
+
+
+def test_create_task_has_created_at(client):
+    r = client.post("/tasks", json={"title": "Hello"})
+    assert r.status_code == 201
+    data = r.get_json()
+    assert data["created_at"]
+
+
+def test_created_at_not_changed_on_update(client):
+    created = client.post("/tasks", json={"title": "Original"}).get_json()
+    r = client.put("/tasks/1", json={"title": "Updated"})
+    assert r.status_code == 200
+    assert r.get_json()["created_at"] == created["created_at"]
 
 
 def test_toggle_task_get_not_allowed(client):

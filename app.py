@@ -20,11 +20,18 @@ def get_db():
             "description TEXT NOT NULL DEFAULT '', "
             "completed INTEGER NOT NULL DEFAULT 0, "
             "priority TEXT NOT NULL DEFAULT 'medium', "
-            "due_date TEXT)"
+            "due_date TEXT, "
+            "created_at TEXT NOT NULL DEFAULT '')"
         )
         columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
         if "due_date" not in columns:
             db.execute("ALTER TABLE tasks ADD COLUMN due_date TEXT")
+        if "created_at" not in columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN created_at TEXT NOT NULL DEFAULT ''")
+            db.execute(
+                "UPDATE tasks SET created_at = strftime('%Y-%m-%dT%H:%M:%S', 'now') "
+                "WHERE created_at = ''"
+            )
         db.commit()
     return g.db
 
@@ -44,6 +51,7 @@ def _row(row):
         "completed": bool(row["completed"]),
         "priority": row["priority"],
         "due_date": row["due_date"],
+        "created_at": row["created_at"],
     }
 
 
@@ -154,7 +162,8 @@ def create_task():
 
     db = get_db()
     cur = db.execute(
-        "INSERT INTO tasks (title, description, completed, priority, due_date) VALUES (?, ?, 0, ?, ?)",
+        "INSERT INTO tasks (title, description, completed, priority, due_date, created_at) "
+        "VALUES (?, ?, 0, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'))",
         (title, data.get("description", ""), priority, due_date),
     )
     db.commit()
