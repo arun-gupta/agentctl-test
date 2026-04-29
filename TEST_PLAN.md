@@ -14,7 +14,7 @@
 
 | Feature | Status | Section |
 |---------|--------|---------|
-| `start` interactive (claude) | ⬜ | [start — basic interactive](#start--basic-interactive) |
+| `start` interactive (claude) | ✅ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ✅ | [start --headless](#start---headless) |
 | `start --quiet` | ⬜ | [start --quiet](#start---quiet) |
 | `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
@@ -53,7 +53,7 @@ agentctl start <issue>
 
 | Status | Issue |
 |--------|-------|
-| ⬜ | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
+| ✅ | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
 | ⬜ | [#11](https://github.com/arun-gupta/agentctl-test/issues/11) |
 
 ---
