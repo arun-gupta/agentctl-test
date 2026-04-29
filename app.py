@@ -1,7 +1,9 @@
+import csv
+import io
 import math
 import sqlite3
 from datetime import datetime
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
 app.config["DATABASE"] = "tasks.db"
@@ -202,6 +204,30 @@ def get_task_stats():
         "incomplete": incomplete,
         "by_priority": by_priority,
     })
+
+
+@app.route("/tasks/export", methods=["GET"])
+def export_tasks():
+    rows = get_db().execute("SELECT * FROM tasks ORDER BY id ASC").fetchall()
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "created_at"])
+    for row in rows:
+        writer.writerow([
+            row["id"],
+            row["title"],
+            row["description"],
+            str(bool(row["completed"])).lower(),
+            row["priority"],
+            row["due_date"] if row["due_date"] is not None else "",
+            row["created_at"],
+        ])
+    return Response(
+        buf.getvalue(),
+        status=200,
+        mimetype="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="tasks.csv"'},
+    )
 
 
 @app.route("/tasks/<int:task_id>", methods=["GET"])
