@@ -111,6 +111,8 @@ Lightweight spec-review checkpoint; no external tooling required. Produces a `sp
 |---------|-------|--------|
 | `agentctl start 34 --sdd=plain` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
 | `agentctl start 25 --sdd=plain` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
+| `agentctl start 42 --sdd=plain` | 🟢 [#42](https://github.com/arun-gupta/agentctl-test/issues/42) | ⬜ |
+| `agentctl start 43 --sdd=plain` | 🟢 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
 
 ---
 
@@ -144,7 +146,7 @@ Start from any directory without `cd`-ing into the repo first.
 
 | Variant | Status |
 |---------|--------|
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/33` | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/44` | ⬜ |
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/29` | ⬜ |
 
 ---
@@ -183,8 +185,8 @@ Approve or revise the spec after an SDD checkpoint. Requires a paused worktree w
 |---------|-------|--------|
 | `agentctl resume 5` | 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
 | `agentctl resume 34 "revision feedback"` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
-| `agentctl resume --headless 34` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
-| `agentctl resume --notify 34` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
+| `agentctl resume --headless 42` | 🟢 [#42](https://github.com/arun-gupta/agentctl-test/issues/42) | ⬜ |
+| `agentctl resume --notify 43` | 🟢 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
 | `agentctl resume --quiet 25` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
 
 ---
