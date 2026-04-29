@@ -15,7 +15,7 @@
 | Feature | Status | Section |
 |---------|--------|---------|
 | `start` interactive (claude) | ✅ | [start — basic interactive](#start--basic-interactive) |
-| `start <issue> <slug>` | ⬜ | [start — basic interactive](#start--basic-interactive) |
+| `start <issue> <slug>` | ✅ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ✅ | [start --headless](#start---headless) |
 | `start --quiet` | ⬜ | [start --quiet](#start---quiet) |
 | `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
@@ -58,7 +58,7 @@ Run the agent in the foreground; log streams to the terminal. The optional `[slu
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 1` | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ✅ |
-| `agentctl start 28 add-bulk-delete` | [#28](https://github.com/arun-gupta/agentctl-test/issues/28) | ⬜ |
+| `agentctl start 28 add-bulk-delete` | [#28](https://github.com/arun-gupta/agentctl-test/issues/28) | ✅ |
 
 ---
 
