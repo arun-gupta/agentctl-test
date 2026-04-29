@@ -85,7 +85,7 @@ Ctrl+C in quiet mode detaches without killing the agent — it keeps running in 
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 7 --quiet` | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
+| `agentctl start 7 --quiet` | 🔴 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
 | `agentctl start 37 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🟢 [#37](https://github.com/arun-gupta/agentctl-test/issues/37) | ⬜ |
 
 ---
@@ -98,7 +98,7 @@ Use a specific coding agent. Each agent is tested independently.
 |---------|-------|--------|
 | `agentctl start 1 --agent claude` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ✅ |
 | `agentctl start 4 --agent codex` | 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | ✅ |
-| `agentctl start 31 --agent copilot` | 🟢 [#31](https://github.com/arun-gupta/agentctl-test/issues/31) | ✅ |
+| `agentctl start 31 --agent copilot` | 🔴 [#31](https://github.com/arun-gupta/agentctl-test/issues/31) | ✅ |
 | `agentctl start 32 --agent gemini` | 🟢 [#32](https://github.com/arun-gupta/agentctl-test/issues/32) | ⬜ |
 | `agentctl start 33 --agent opencode` | 🟢 [#33](https://github.com/arun-gupta/agentctl-test/issues/33) | ⬜ |
 | `agentctl start 12 --agent openhands` | 🔴 [#12](https://github.com/arun-gupta/agentctl-test/issues/12) | ✅ |
