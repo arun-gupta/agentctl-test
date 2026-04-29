@@ -1,3 +1,4 @@
+import math
 import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, g
@@ -89,19 +90,51 @@ def health_check():
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
     priority = request.args.get("priority")
+    page_str = request.args.get("page", "1")
+    per_page_str = request.args.get("per_page", "20")
+
+    try:
+        page = int(page_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": "page must be a positive integer"}), 400
+    try:
+        per_page = int(per_page_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": "per_page must be a positive integer"}), 400
+
+    if page < 1:
+        return jsonify({"error": "page must be a positive integer"}), 400
+    if per_page < 1:
+        return jsonify({"error": "per_page must be a positive integer"}), 400
 
     if priority is not None:
         error = _validate_priority(priority)
         if error:
             return error
-        rows = get_db().execute(
-            "SELECT * FROM tasks WHERE priority = ?", (priority,)
+        db = get_db()
+        total = db.execute(
+            "SELECT COUNT(*) FROM tasks WHERE priority = ?", (priority,)
+        ).fetchone()[0]
+        rows = db.execute(
+            "SELECT * FROM tasks WHERE priority = ? LIMIT ? OFFSET ?",
+            (priority, per_page, (page - 1) * per_page),
         ).fetchall()
     else:
-        # Returns all tasks with no pagination (see issue #7)
-        rows = get_db().execute("SELECT * FROM tasks").fetchall()
+        db = get_db()
+        total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+        rows = db.execute(
+            "SELECT * FROM tasks LIMIT ? OFFSET ?",
+            (per_page, (page - 1) * per_page),
+        ).fetchall()
 
-    return jsonify([_row(r) for r in rows])
+    pages = math.ceil(total / per_page) if total > 0 else 0
+    return jsonify({
+        "items": [_row(r) for r in rows],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    })
 
 
 @app.route("/tasks/stats", methods=["GET"])

@@ -23,7 +23,12 @@ def test_health_check(client):
 def test_list_empty(client):
     r = client.get("/tasks")
     assert r.status_code == 200
-    assert r.get_json() == []
+    data = r.get_json()
+    assert data["items"] == []
+    assert data["total"] == 0
+    assert data["page"] == 1
+    assert data["per_page"] == 20
+    assert data["pages"] == 0
 
 
 def test_create_task(client):
@@ -131,7 +136,8 @@ def test_list_tasks_can_filter_by_priority(client):
     r = client.get("/tasks?priority=high")
 
     assert r.status_code == 200
-    assert r.get_json() == [
+    data = r.get_json()
+    assert data["items"] == [
         {
             "id": 2,
             "title": "High",
@@ -142,6 +148,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "created_at": high["created_at"],
         }
     ]
+    assert data["total"] == 1
     assert low["created_at"]
     assert medium["created_at"]
 
@@ -280,8 +287,8 @@ def test_delete_completed_tasks(client):
     assert r.get_json() == {"deleted": 1}
 
     remaining = client.get("/tasks").get_json()
-    assert len(remaining) == 1
-    assert remaining[0]["title"] == "Not done"
+    assert remaining["total"] == 1
+    assert remaining["items"][0]["title"] == "Not done"
 
 
 def test_delete_completed_tasks_none_exist(client):
@@ -308,3 +315,89 @@ def test_stats_all_completed(client):
     data = r.get_json()
     assert data["incomplete"] == 0
     assert data["completed"] == data["total"]
+
+
+# --- Pagination tests ---
+
+def test_pagination_defaults(client):
+    for i in range(5):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 5
+    assert data["page"] == 1
+    assert data["per_page"] == 20
+    assert data["pages"] == 1
+    assert len(data["items"]) == 5
+
+
+def test_pagination_limits_items(client):
+    for i in range(5):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    r = client.get("/tasks?page=1&per_page=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 5
+    assert data["page"] == 1
+    assert data["per_page"] == 2
+    assert data["pages"] == 3
+    assert len(data["items"]) == 2
+
+
+def test_pagination_second_page(client):
+    for i in range(5):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    r = client.get("/tasks?page=2&per_page=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["page"] == 2
+    assert len(data["items"]) == 2
+
+
+def test_pagination_out_of_range_returns_empty(client):
+    client.post("/tasks", json={"title": "Only task"})
+    r = client.get("/tasks?page=100&per_page=20")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["items"] == []
+    assert data["total"] == 1
+    assert data["page"] == 100
+
+
+def test_pagination_invalid_page_returns_400(client):
+    r = client.get("/tasks?page=abc")
+    assert r.status_code == 400
+    assert "page" in r.get_json()["error"]
+
+
+def test_pagination_invalid_per_page_returns_400(client):
+    r = client.get("/tasks?per_page=abc")
+    assert r.status_code == 400
+    assert "per_page" in r.get_json()["error"]
+
+
+def test_pagination_negative_page_returns_400(client):
+    r = client.get("/tasks?page=-1")
+    assert r.status_code == 400
+    assert "page" in r.get_json()["error"]
+
+
+def test_pagination_zero_per_page_returns_400(client):
+    r = client.get("/tasks?per_page=0")
+    assert r.status_code == 400
+    assert "per_page" in r.get_json()["error"]
+
+
+def test_pagination_with_priority_filter(client):
+    for _ in range(3):
+        client.post("/tasks", json={"title": "high task", "priority": "high"})
+    for _ in range(2):
+        client.post("/tasks", json={"title": "low task", "priority": "low"})
+    r = client.get("/tasks?priority=high&per_page=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 3
+    assert data["pages"] == 2
+    assert len(data["items"]) == 2
+    assert all(item["priority"] == "high" for item in data["items"])
