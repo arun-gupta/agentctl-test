@@ -17,9 +17,9 @@
 | `start` interactive (claude) | ⬜ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ⬜ | [start --headless](#start---headless) |
 | `start --quiet` | ⬜ | [start --quiet](#start---quiet) |
-| `start --agent claude` | ⬜ | [start --agent](#start---agent-name) |
-| `start --agent codex` | ⬜ | [start --agent](#start---agent-name) |
-| `start --agent copilot` | ⬜ | [start --agent](#start---agent-name) |
+| `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
+| `start --agent codex` | ✅ | [start --agent](#start---agent-name) |
+| `start --agent copilot` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent gemini` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent opencode` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent openhands` | ✅ | [start --agent](#start---agent-name) |
@@ -97,9 +97,9 @@ agentctl start <issue> --agent <name>
 
 | Status | Agent | Issue |
 |--------|-------|-------|
-| ⬜ | claude (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
-| ⬜ | codex | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
-| ⬜ | copilot | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) |
+| ✅ | claude (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
+| ✅ | codex | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
+| ✅ | copilot | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) |
 | ⬜ | gemini | [#32](https://github.com/arun-gupta/agentctl-test/issues/32) |
 | ⬜ | opencode | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
 | ✅ | openhands | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) |
