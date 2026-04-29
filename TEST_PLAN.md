@@ -110,9 +110,6 @@ Lightweight spec-review checkpoint; no external tooling required. Produces a `sp
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 34 --sdd=plain` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
-| `agentctl start 25 --sdd=plain` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
-| `agentctl start 42 --sdd=plain` | 🟢 [#42](https://github.com/arun-gupta/agentctl-test/issues/42) | ⬜ |
-| `agentctl start 43 --sdd=plain` | 🟢 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
 
 ---
 
@@ -122,7 +119,6 @@ Full spec-then-implement pipeline via Spec Kit.
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 5 --sdd=speckit` | 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ❌ |
 | `agentctl start 6 --sdd=speckit` | 🟢 [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | ❌ |
 
 > speckit is not currently installed in this repo. Install it to unblock these issues.
@@ -188,6 +184,8 @@ Approve or revise the spec after an SDD checkpoint. Requires a paused worktree w
 | `agentctl resume --headless 42` | 🟢 [#42](https://github.com/arun-gupta/agentctl-test/issues/42) | ⬜ |
 | `agentctl resume --notify 43` | 🟢 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
 | `agentctl resume --quiet 25` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
+
+> **Prerequisite for ⬜ rows:** run `agentctl start <issue> --sdd=plain` first to create the paused worktree, then run the resume variant against the same issue.
 
 ---
 
