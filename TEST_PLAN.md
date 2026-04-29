@@ -35,7 +35,7 @@
 | `resume "feedback"` | ✅ | [resume](#resume) |
 | `resume --headless` | ⬜ | [resume](#resume) |
 | `status` | ✅ | [status](#status) |
-| `status --verbose` | ⬜ | [status](#status) |
+| `status --verbose` | ✅ | [status](#status) |
 | `cleanup <issue>` | ⬜ | [cleanup](#cleanup) |
 | `cleanup --all` | ✅ | [cleanup](#cleanup) |
 | `discard <issue>` | ✅ | [discard](#discard) |
@@ -231,7 +231,7 @@ agentctl status --verbose
 | Status | Variant | Issue |
 |--------|---------|-------|
 | ✅ | (default) | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
-| ⬜ | `--verbose` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) |
+| ✅ | `--verbose` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) |
 
 ---
 
