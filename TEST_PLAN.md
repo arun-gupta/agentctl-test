@@ -55,16 +55,10 @@
 
 Run the agent in the foreground; log streams to the terminal. The optional `[slug]` overrides the auto-derived branch name.
 
-```bash
-agentctl start <issue>
-agentctl start <issue> <slug>
-```
-
-| Status | Variant | Issue |
-|--------|---------|-------|
-| ✅ | (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
-| ⬜ | (default) | [#11](https://github.com/arun-gupta/agentctl-test/issues/11) |
-| ⬜ | `<slug>` | [#28](https://github.com/arun-gupta/agentctl-test/issues/28) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 1` | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ✅ |
+| `agentctl start 28 add-bulk-delete` | [#28](https://github.com/arun-gupta/agentctl-test/issues/28) | ⬜ |
 
 ---
 
@@ -72,14 +66,10 @@ agentctl start <issue> <slug>
 
 Run the agent in the background; output written to `agent.log`.
 
-```bash
-agentctl start <issue> --headless
-```
-
-| Status | Issue |
-|--------|-------|
-| ✅ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
-| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 3 --headless` | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
+| `agentctl start 35 --headless` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
 
 ---
 
@@ -87,13 +77,9 @@ agentctl start <issue> --headless
 
 Suppress log output in the foreground; show only spinner (TTY) or CI heartbeat lines. Has no effect with `--headless`.
 
-```bash
-agentctl start <issue> --quiet
-```
-
-| Status | Issue |
-|--------|-------|
-| ⬜ | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 7 --quiet` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ⬜ |
 
 ---
 
@@ -101,18 +87,14 @@ agentctl start <issue> --quiet
 
 Use a specific coding agent. Each agent is tested independently.
 
-```bash
-agentctl start <issue> --agent <name>
-```
-
-| Status | Agent | Issue |
-|--------|-------|-------|
-| ✅ | claude (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
-| ✅ | codex | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
-| ✅ | copilot | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) |
-| ⬜ | gemini | [#32](https://github.com/arun-gupta/agentctl-test/issues/32) |
-| ⬜ | opencode | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
-| ✅ | openhands | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 1 --agent claude` | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ✅ |
+| `agentctl start 4 --agent codex` | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | ✅ |
+| `agentctl start 31 --agent copilot` | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) | ✅ |
+| `agentctl start 32 --agent gemini` | [#32](https://github.com/arun-gupta/agentctl-test/issues/32) | ⬜ |
+| `agentctl start 33 --agent opencode` | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) | ⬜ |
+| `agentctl start 12 --agent openhands` | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) | ✅ |
 
 ---
 
@@ -120,14 +102,10 @@ agentctl start <issue> --agent <name>
 
 Lightweight spec-review checkpoint; no external tooling required. Produces a `spec.md` and pauses for `agentctl resume`.
 
-```bash
-agentctl start <issue> --sdd=plain
-```
-
-| Status | Issue |
-|--------|-------|
-| ⬜ | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
-| ⬜ | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 34 --sdd=plain` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
+| `agentctl start 25 --sdd=plain` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
 
 ---
 
@@ -135,14 +113,10 @@ agentctl start <issue> --sdd=plain
 
 Full spec-then-implement pipeline via Spec Kit.
 
-```bash
-agentctl start <issue> --sdd=speckit
-```
-
-| Status | Issue |
-|--------|-------|
-| ❌ | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
-| ❌ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 5 --sdd=speckit` | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ❌ |
+| `agentctl start 6 --sdd=speckit` | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | ❌ |
 
 > speckit is not currently installed in this repo. Install it to unblock these issues.
 
@@ -152,14 +126,10 @@ agentctl start <issue> --sdd=speckit
 
 Send a native desktop notification when a headless agent finishes. Also set repo-wide via `notify: true` in `.agentctl.yml` (already configured in this repo).
 
-```bash
-agentctl start <issue> --headless --notify
-```
-
-| Status | Issue |
-|--------|-------|
-| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
-| ⬜ | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start 35 --headless --notify` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl start 26 --headless --notify` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) | ⬜ |
 
 ---
 
@@ -167,14 +137,10 @@ agentctl start <issue> --headless --notify
 
 Start from any directory without `cd`-ing into the repo first.
 
-```bash
-agentctl start https://github.com/arun-gupta/agentctl-test/issues/<n>
-```
-
-| Status | Issue |
-|--------|-------|
-| ⬜ | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
-| ⬜ | [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
+| Variant | Status |
+|---------|--------|
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/33` | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/29` | ⬜ |
 
 ---
 
@@ -182,17 +148,11 @@ agentctl start https://github.com/arun-gupta/agentctl-test/issues/<n>
 
 Stream `agent.log` for a running or finished headless agent.
 
-```bash
-agentctl logs <issue>               # follow (default)
-agentctl logs <issue> --lines 100   # history depth
-agentctl logs <issue> --no-follow   # print and exit
-```
-
-| Status | Variant | Issue |
-|--------|---------|-------|
-| ✅ | (default) | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
-| ⬜ | `--lines N` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
-| ⬜ | `--no-follow` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl logs 3` | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
+| `agentctl logs 35 --lines 100` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl logs 35 --no-follow` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
 
 ---
 
@@ -200,14 +160,9 @@ agentctl logs <issue> --no-follow   # print and exit
 
 Attach to a running headless agent and exit automatically when it finishes.
 
-```bash
-agentctl attach <issue>
-```
-
-| Status | Issue |
-|--------|-------|
-| ⬜ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
-| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl attach 35` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
 
 ---
 
@@ -215,21 +170,13 @@ agentctl attach <issue>
 
 Approve or revise the spec after an SDD checkpoint. Requires a paused worktree with `spec.md` present.
 
-```bash
-agentctl resume <issue>                         # approve, run in foreground
-agentctl resume <issue> "revision feedback"     # request spec rewrite
-agentctl resume --headless <issue>              # approve, run in background
-agentctl resume --notify <issue>                # notify on finish
-agentctl resume --quiet <issue>                 # suppress output, show spinner
-```
-
-| Status | Variant | Issue |
-|--------|---------|-------|
-| ✅ | approve | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
-| ✅ | `"feedback"` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
-| ⬜ | `--headless` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
-| ⬜ | `--notify` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
-| ⬜ | `--quiet` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl resume 5` | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
+| `agentctl resume 34 "revision feedback"` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
+| `agentctl resume --headless 34` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
+| `agentctl resume --notify 34` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
+| `agentctl resume --quiet 25` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
 
 ---
 
@@ -237,17 +184,11 @@ agentctl resume --quiet <issue>                 # suppress output, show spinner
 
 Show all linked worktrees and their state. `list` is an alias for `status`.
 
-```bash
-agentctl status
-agentctl status --verbose
-agentctl list
-```
-
-| Status | Variant | Issue |
-|--------|---------|-------|
-| ✅ | (default) | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
-| ✅ | `--verbose` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) |
-| ⬜ | `list` | [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
+| Variant | Status |
+|---------|--------|
+| `agentctl status` | ✅ |
+| `agentctl status --verbose` | ✅ |
+| `agentctl list` | ⬜ |
 
 ---
 
@@ -255,21 +196,15 @@ agentctl list
 
 Remove a worktree after its PR is merged. Issue number is inferred from the current branch when run from inside a linked worktree.
 
-```bash
-agentctl cleanup <issue>    # explicit issue number
-agentctl cleanup            # inferred from current branch (inside worktree)
-agentctl cleanup --all      # sweep all merged PRs
-```
-
-| Status | Variant | Issue |
-|--------|---------|-------|
-| ⬜ | single | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
-| ⬜ | single | [#2](https://github.com/arun-gupta/agentctl-test/issues/2) |
-| ⬜ | single | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
-| ⬜ | single | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
-| ⬜ | single | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
-| ⬜ | inferred (from inside worktree) | any of the above |
-| ✅ | `--all` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl cleanup 1` | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ⬜ |
+| `agentctl cleanup 2` | [#2](https://github.com/arun-gupta/agentctl-test/issues/2) | ⬜ |
+| `agentctl cleanup 3` | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ⬜ |
+| `agentctl cleanup 4` | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | ⬜ |
+| `agentctl cleanup 5` | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ⬜ |
+| `agentctl cleanup` (cd into worktree first) | any of the above | ⬜ |
+| `agentctl cleanup --all` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | ✅ |
 
 ---
 
@@ -277,17 +212,11 @@ agentctl cleanup --all      # sweep all merged PRs
 
 Permanently delete a worktree and branches for abandoned or intentionally dropped work. Issue number is inferred from the current branch when run from inside a linked worktree.
 
-```bash
-agentctl discard <issue>    # explicit issue number
-agentctl discard            # inferred from current branch (inside worktree)
-agentctl discard --stale    # all worktrees with no agent and no PR
-```
-
-| Status | Variant | Issue |
-|--------|---------|-------|
-| ✅ | single | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) |
-| ⬜ | inferred (from inside worktree) | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) |
-| ✅ | `--stale` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl discard 6` | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | ✅ |
+| `agentctl discard` (cd into worktree first) | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | ⬜ |
+| `agentctl discard --stale` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | ✅ |
 
 ---
 
@@ -302,9 +231,9 @@ dev_server: "cmd {port}"  # not yet set in this repo
 
 User-level adapter drop-in: `~/.config/agentctl/adapters/<name>.yml`
 
-| Status | Feature | Notes |
-|--------|---------|-------|
-| ✅ | `notify: true` | Set in `.agentctl.yml`; fires on every headless run |
-| ✅ | project-level adapter | openhands via `.agentctl/adapters/openhands.yml` |
-| ⬜ | `dev_server` | Add a `dev_server` command to `.agentctl.yml` and verify port substitution on `start` |
-| ⬜ | user-level adapter | Drop a custom adapter into `~/.config/agentctl/adapters/` and invoke it |
+| Feature | Notes | Status |
+|---------|-------|--------|
+| `notify: true` | Set in `.agentctl.yml`; fires on every headless run | ✅ |
+| project-level adapter | openhands via `.agentctl/adapters/openhands.yml` | ✅ |
+| `dev_server` | Add a `dev_server` command to `.agentctl.yml` and verify port substitution on `start` | ⬜ |
+| user-level adapter | Drop a custom adapter into `~/.config/agentctl/adapters/` and invoke it | ⬜ |
