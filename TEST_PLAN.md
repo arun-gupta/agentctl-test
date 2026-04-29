@@ -84,7 +84,7 @@ Ctrl+C in quiet mode detaches without killing the agent — it keeps running in 
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 7 --quiet` | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
-| `agentctl start 7 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ⬜ |
+| `agentctl start 37 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🟢 [#37](https://github.com/arun-gupta/agentctl-test/issues/37) | ⬜ |
 
 ---
 
