@@ -4,8 +4,8 @@
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Tested — issue closed, feature verified |
-| ⬜ | Needs testing — issue open, not yet run |
+| ✅ | agentctl command confirmed working |
+| ⬜ | Not yet run |
 | ❌ | Blocked — cannot run without external dependency |
 
 ---
@@ -15,11 +15,12 @@
 | Feature | Status | Section |
 |---------|--------|---------|
 | `start` interactive (claude) | ✅ | [start — basic interactive](#start--basic-interactive) |
+| `start <issue> <slug>` | ⬜ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ✅ | [start --headless](#start---headless) |
 | `start --quiet` | ⬜ | [start --quiet](#start---quiet) |
 | `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent codex` | ✅ | [start --agent](#start---agent-name) |
-| `start --agent copilot` | ⬜ | [start --agent](#start---agent-name) |
+| `start --agent copilot` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent gemini` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent opencode` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent openhands` | ✅ | [start --agent](#start---agent-name) |
@@ -30,31 +31,40 @@
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ⬜ | [logs](#logs) |
 | `logs --no-follow` | ⬜ | [logs](#logs) |
-| `attach` | ✅ | [attach](#attach) |
+| `attach` | ⬜ | [attach](#attach) |
 | `resume` (approve) | ✅ | [resume](#resume) |
-| `resume "feedback"` | ⬜ | [resume](#resume) |
+| `resume "feedback"` | ✅ | [resume](#resume) |
 | `resume --headless` | ⬜ | [resume](#resume) |
-| `status` | ⬜ | [status](#status) |
-| `status --verbose` | ⬜ | [status](#status) |
-| `cleanup <issue>` | ✅ | [cleanup](#cleanup) |
-| `cleanup --all` | ⬜ | [cleanup](#cleanup) |
-| `discard <issue>` | ⬜ | [discard](#discard) |
-| `discard --stale` | ⬜ | [discard](#discard) |
+| `resume --notify` | ⬜ | [resume](#resume) |
+| `resume --quiet` | ⬜ | [resume](#resume) |
+| `status` | ✅ | [status](#status) |
+| `status --verbose` | ✅ | [status](#status) |
+| `list` (alias for status) | ⬜ | [status](#status) |
+| `cleanup <issue>` | ⬜ | [cleanup](#cleanup) |
+| `cleanup` (from inside worktree) | ⬜ | [cleanup](#cleanup) |
+| `cleanup --all` | ✅ | [cleanup](#cleanup) |
+| `discard <issue>` | ✅ | [discard](#discard) |
+| `discard` (from inside worktree) | ⬜ | [discard](#discard) |
+| `discard --stale` | ✅ | [discard](#discard) |
+| `dev_server` in `.agentctl.yml` | ⬜ | [config](#agentctlyml-config) |
+| user-level adapter | ⬜ | [config](#agentctlyml-config) |
 
 ---
 
 ## `start` — basic interactive
 
-Run the agent in the foreground; log streams to the terminal.
+Run the agent in the foreground; log streams to the terminal. The optional `[slug]` overrides the auto-derived branch name.
 
 ```bash
 agentctl start <issue>
+agentctl start <issue> <slug>
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ✅ | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | Persist tasks to SQLite instead of in-memory dict |
-| ✅ | [#11](https://github.com/arun-gupta/agentctl-test/issues/11) | Add GET /health endpoint |
+| Status | Variant | Issue |
+|--------|---------|-------|
+| ✅ | (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
+| ⬜ | (default) | [#11](https://github.com/arun-gupta/agentctl-test/issues/11) |
+| ⬜ | `<slug>` | [#28](https://github.com/arun-gupta/agentctl-test/issues/28) |
 
 ---
 
@@ -66,24 +76,24 @@ Run the agent in the background; output written to `agent.log`.
 agentctl start <issue> --headless
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ✅ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ⬜ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support |
+| Status | Issue |
+|--------|-------|
+| ✅ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
+| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
 
 ---
 
 ## `start --quiet`
 
-Suppress log output; show only spinner (TTY) or CI heartbeat lines.
+Suppress log output in the foreground; show only spinner (TTY) or CI heartbeat lines. Has no effect with `--headless`.
 
 ```bash
-agentctl start <issue> --headless --quiet
+agentctl start <issue> --quiet
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ⬜ | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | Add pagination to GET /tasks |
+| Status | Issue |
+|--------|-------|
+| ⬜ | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) |
 
 ---
 
@@ -95,14 +105,14 @@ Use a specific coding agent. Each agent is tested independently.
 agentctl start <issue> --agent <name>
 ```
 
-| Status | Agent | Issue | Title |
-|--------|-------|-------|-------|
-| ✅ | claude (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | Persist tasks to SQLite instead of in-memory dict |
-| ✅ | codex | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | Fix toggle endpoint: change GET to PATCH |
-| ✅ | openhands | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) | Return 400 for malformed JSON |
-| ⬜ | copilot | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) | Add sort order to GET /tasks |
-| ⬜ | gemini | [#32](https://github.com/arun-gupta/agentctl-test/issues/32) | Add PATCH /tasks/:id for partial update |
-| ⬜ | opencode | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) | Add overdue filter to GET /tasks |
+| Status | Agent | Issue |
+|--------|-------|-------|
+| ✅ | claude (default) | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
+| ✅ | codex | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
+| ✅ | copilot | [#31](https://github.com/arun-gupta/agentctl-test/issues/31) |
+| ⬜ | gemini | [#32](https://github.com/arun-gupta/agentctl-test/issues/32) |
+| ⬜ | opencode | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
+| ✅ | openhands | [#12](https://github.com/arun-gupta/agentctl-test/issues/12) |
 
 ---
 
@@ -114,10 +124,10 @@ Lightweight spec-review checkpoint; no external tooling required. Produces a `sp
 agentctl start <issue> --sdd=plain
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ⬜ | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | Add optional notes field to tasks |
-| ⬜ | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | Add completed filter to GET /tasks |
+| Status | Issue |
+|--------|-------|
+| ⬜ | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
+| ⬜ | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) |
 
 ---
 
@@ -129,12 +139,12 @@ Full spec-then-implement pipeline via Spec Kit.
 agentctl start <issue> --sdd=speckit
 ```
 
-| Status | Issue | Title | Notes |
-|--------|-------|-------|-------|
-| ✅ | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | Add optional due_date field to tasks | Interactive speckit workflow |
-| ❌ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support | Blocked: speckit not installed |
+| Status | Issue |
+|--------|-------|
+| ❌ | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
+| ❌ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) |
 
-> speckit is not currently installed in this repo. Install it to unblock issue [#6](https://github.com/arun-gupta/agentctl-test/issues/6).
+> speckit is not currently installed in this repo. Install it to unblock these issues.
 
 ---
 
@@ -146,10 +156,10 @@ Send a native desktop notification when a headless agent finishes. Also set repo
 agentctl start <issue> --headless --notify
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | Add GET /tasks/export endpoint (CSV) |
-| ⬜ | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) | Add created_at timestamp to tasks |
+| Status | Issue |
+|--------|-------|
+| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
+| ⬜ | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) |
 
 ---
 
@@ -161,10 +171,10 @@ Start from any directory without `cd`-ing into the repo first.
 agentctl start https://github.com/arun-gupta/agentctl-test/issues/<n>
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ⬜ | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) | Add overdue filter to GET /tasks |
-| ⬜ | [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | Return 404 with JSON body for unknown routes |
+| Status | Issue |
+|--------|-------|
+| ⬜ | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
+| ⬜ | [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
 
 ---
 
@@ -178,11 +188,11 @@ agentctl logs <issue> --lines 100   # history depth
 agentctl logs <issue> --no-follow   # print and exit
 ```
 
-| Status | Flag | Issue | Title |
-|--------|------|-------|-------|
-| ✅ | (default) | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ⬜ | `--lines N` | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support |
-| ⬜ | `--no-follow` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | Add GET /tasks/export endpoint (CSV) |
+| Status | Variant | Issue |
+|--------|---------|-------|
+| ✅ | (default) | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
+| ⬜ | `--lines N` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
+| ⬜ | `--no-follow` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
 
 ---
 
@@ -194,10 +204,10 @@ Attach to a running headless agent and exit automatically when it finishes.
 agentctl attach <issue>
 ```
 
-| Status | Issue | Title |
-|--------|-------|-------|
-| ✅ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ⬜ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support |
+| Status | Issue |
+|--------|-------|
+| ⬜ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
+| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
 
 ---
 
@@ -209,63 +219,92 @@ Approve or revise the spec after an SDD checkpoint. Requires a paused worktree w
 agentctl resume <issue>                         # approve, run in foreground
 agentctl resume <issue> "revision feedback"     # request spec rewrite
 agentctl resume --headless <issue>              # approve, run in background
+agentctl resume --notify <issue>                # notify on finish
+agentctl resume --quiet <issue>                 # suppress output, show spinner
 ```
 
-| Status | Variant | Issue | Title |
-|--------|---------|-------|-------|
-| ✅ | approve | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | Add optional due_date field to tasks |
-| ⬜ | `"feedback"` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | Add optional notes field to tasks |
-| ⬜ | `--headless` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | Add optional notes field to tasks |
+| Status | Variant | Issue |
+|--------|---------|-------|
+| ✅ | approve | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
+| ✅ | `"feedback"` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
+| ⬜ | `--headless` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
+| ⬜ | `--notify` | [#34](https://github.com/arun-gupta/agentctl-test/issues/34) |
+| ⬜ | `--quiet` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) |
 
 ---
 
 ## `status`
 
-Show all linked worktrees and their state.
+Show all linked worktrees and their state. `list` is an alias for `status`.
 
 ```bash
 agentctl status
 agentctl status --verbose
+agentctl list
 ```
 
-| Status | Flag | Issue | Title |
-|--------|------|-------|-------|
-| ⬜ | (default) | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) | Add overdue filter to GET /tasks |
-| ⬜ | `--verbose` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | Add pagination to GET /tasks |
+| Status | Variant | Issue |
+|--------|---------|-------|
+| ✅ | (default) | [#33](https://github.com/arun-gupta/agentctl-test/issues/33) |
+| ✅ | `--verbose` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) |
+| ⬜ | `list` | [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
 
 ---
 
 ## `cleanup`
 
-Remove a worktree after its PR is merged.
+Remove a worktree after its PR is merged. Issue number is inferred from the current branch when run from inside a linked worktree.
 
 ```bash
-agentctl cleanup <issue>    # single issue
+agentctl cleanup <issue>    # explicit issue number
+agentctl cleanup            # inferred from current branch (inside worktree)
 agentctl cleanup --all      # sweep all merged PRs
 ```
 
-| Status | Variant | Issue | Title |
-|--------|---------|-------|-------|
-| ✅ | single | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | Persist tasks to SQLite |
-| ✅ | single | [#2](https://github.com/arun-gupta/agentctl-test/issues/2) | Add task priority levels |
-| ✅ | single | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ✅ | single | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | Fix toggle endpoint |
-| ✅ | single | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | Add optional due_date field to tasks |
-| ⬜ | `--all` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | Run after merging a batch of PRs |
+| Status | Variant | Issue |
+|--------|---------|-------|
+| ⬜ | single | [#1](https://github.com/arun-gupta/agentctl-test/issues/1) |
+| ⬜ | single | [#2](https://github.com/arun-gupta/agentctl-test/issues/2) |
+| ⬜ | single | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
+| ⬜ | single | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
+| ⬜ | single | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
+| ⬜ | inferred (from inside worktree) | any of the above |
+| ✅ | `--all` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
 
 ---
 
 ## `discard`
 
-Permanently delete a worktree and branches for abandoned or intentionally dropped work.
+Permanently delete a worktree and branches for abandoned or intentionally dropped work. Issue number is inferred from the current branch when run from inside a linked worktree.
 
 ```bash
-agentctl discard <issue>    # single
+agentctl discard <issue>    # explicit issue number
+agentctl discard            # inferred from current branch (inside worktree)
 agentctl discard --stale    # all worktrees with no agent and no PR
 ```
 
-| Status | Variant | Issue | Title | Notes |
-|--------|---------|-------|-------|-------|
-| ⬜ | single | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) | Add created_at timestamp to tasks | Duplicate of closed #13 — safe to start and discard |
-| ⬜ | single | [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | Validate title max length | Duplicate of closed #14 — safe to start and discard |
-| ⬜ | `--stale` | any above | — | After discarding one, leave another without a PR to test `--stale` |
+| Status | Variant | Issue |
+|--------|---------|-------|
+| ✅ | single | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) |
+| ⬜ | inferred (from inside worktree) | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) |
+| ✅ | `--stale` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) |
+
+---
+
+## `.agentctl.yml` config
+
+Per-repo configuration and adapter drop-in locations.
+
+```yaml
+notify: true              # already set in this repo
+dev_server: "cmd {port}"  # not yet set in this repo
+```
+
+User-level adapter drop-in: `~/.config/agentctl/adapters/<name>.yml`
+
+| Status | Feature | Notes |
+|--------|---------|-------|
+| ✅ | `notify: true` | Set in `.agentctl.yml`; fires on every headless run |
+| ✅ | project-level adapter | openhands via `.agentctl/adapters/openhands.yml` |
+| ⬜ | `dev_server` | Add a `dev_server` command to `.agentctl.yml` and verify port substitution on `start` |
+| ⬜ | user-level adapter | Drop a custom adapter into `~/.config/agentctl/adapters/` and invoke it |
