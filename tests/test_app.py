@@ -23,7 +23,7 @@ def test_health_check(client):
 def test_list_empty(client):
     r = client.get("/tasks")
     assert r.status_code == 200
-    assert r.get_json() == []
+    assert r.get_json() == {"items": [], "total": 0, "page": 1, "per_page": 20, "pages": 0}
 
 
 def test_create_task(client):
@@ -131,7 +131,8 @@ def test_list_tasks_can_filter_by_priority(client):
     r = client.get("/tasks?priority=high")
 
     assert r.status_code == 200
-    assert r.get_json() == [
+    data = r.get_json()
+    assert data["items"] == [
         {
             "id": 2,
             "title": "High",
@@ -142,6 +143,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "created_at": high["created_at"],
         }
     ]
+    assert data["total"] == 1
     assert low["created_at"]
     assert medium["created_at"]
 
@@ -279,7 +281,7 @@ def test_delete_completed_tasks(client):
     assert r.status_code == 200
     assert r.get_json() == {"deleted": 1}
 
-    remaining = client.get("/tasks").get_json()
+    remaining = client.get("/tasks").get_json()["items"]
     assert len(remaining) == 1
     assert remaining[0]["title"] == "Not done"
 
@@ -308,3 +310,97 @@ def test_stats_all_completed(client):
     data = r.get_json()
     assert data["incomplete"] == 0
     assert data["completed"] == data["total"]
+
+
+def test_pagination_defaults(client):
+    for i in range(5):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["page"] == 1
+    assert data["per_page"] == 20
+    assert data["total"] == 5
+    assert data["pages"] == 1
+    assert len(data["items"]) == 5
+
+
+def test_pagination_per_page(client):
+    for i in range(5):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    r = client.get("/tasks?per_page=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["page"] == 1
+    assert data["per_page"] == 2
+    assert data["total"] == 5
+    assert data["pages"] == 3
+    assert len(data["items"]) == 2
+
+
+def test_pagination_second_page(client):
+    for i in range(5):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    r = client.get("/tasks?page=2&per_page=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["page"] == 2
+    assert data["per_page"] == 2
+    assert data["total"] == 5
+    assert len(data["items"]) == 2
+
+
+def test_pagination_out_of_range(client):
+    client.post("/tasks", json={"title": "Only task"})
+    r = client.get("/tasks?page=99")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["items"] == []
+    assert data["total"] == 1
+    assert data["page"] == 99
+
+
+def test_pagination_invalid_page(client):
+    r = client.get("/tasks?page=abc")
+    assert r.status_code == 400
+    assert "page" in r.get_json()["error"]
+
+
+def test_pagination_invalid_per_page(client):
+    r = client.get("/tasks?per_page=xyz")
+    assert r.status_code == 400
+    assert "per_page" in r.get_json()["error"]
+
+
+def test_pagination_zero_page(client):
+    r = client.get("/tasks?page=0")
+    assert r.status_code == 400
+
+
+def test_pagination_negative_page(client):
+    r = client.get("/tasks?page=-1")
+    assert r.status_code == 400
+
+
+def test_pagination_zero_per_page(client):
+    r = client.get("/tasks?per_page=0")
+    assert r.status_code == 400
+
+
+def test_pagination_negative_per_page(client):
+    r = client.get("/tasks?per_page=-5")
+    assert r.status_code == 400
+
+
+def test_pagination_with_priority_filter(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"High {i}", "priority": "high"})
+    for i in range(2):
+        client.post("/tasks", json={"title": f"Low {i}", "priority": "low"})
+    r = client.get("/tasks?priority=high&page=1&per_page=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 3
+    assert data["pages"] == 2
+    assert len(data["items"]) == 2
+    assert all(item["priority"] == "high" for item in data["items"])

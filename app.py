@@ -86,6 +86,27 @@ def health_check():
     return jsonify({"status": "ok"})
 
 
+def _parse_pagination():
+    page_str = request.args.get("page", "1")
+    per_page_str = request.args.get("per_page", "20")
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        return None, None, (jsonify({"error": "page must be a positive integer"}), 400)
+
+    try:
+        per_page = int(per_page_str)
+        if per_page < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        return None, None, (jsonify({"error": "per_page must be a positive integer"}), 400)
+
+    return page, per_page, None
+
+
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
     priority = request.args.get("priority")
@@ -94,14 +115,36 @@ def list_tasks():
         error = _validate_priority(priority)
         if error:
             return error
-        rows = get_db().execute(
-            "SELECT * FROM tasks WHERE priority = ?", (priority,)
+
+    page, per_page, error = _parse_pagination()
+    if error:
+        return error
+
+    db = get_db()
+    offset = (page - 1) * per_page
+
+    if priority is not None:
+        total = db.execute(
+            "SELECT COUNT(*) FROM tasks WHERE priority = ?", (priority,)
+        ).fetchone()[0]
+        rows = db.execute(
+            "SELECT * FROM tasks WHERE priority = ? LIMIT ? OFFSET ?",
+            (priority, per_page, offset),
         ).fetchall()
     else:
-        # Returns all tasks with no pagination (see issue #7)
-        rows = get_db().execute("SELECT * FROM tasks").fetchall()
+        total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+        rows = db.execute(
+            "SELECT * FROM tasks LIMIT ? OFFSET ?", (per_page, offset)
+        ).fetchall()
 
-    return jsonify([_row(r) for r in rows])
+    pages = (total + per_page - 1) // per_page
+    return jsonify({
+        "items": [_row(r) for r in rows],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    })
 
 
 @app.route("/tasks/stats", methods=["GET"])
