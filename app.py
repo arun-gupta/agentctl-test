@@ -33,11 +33,14 @@ def get_db():
             "completed INTEGER NOT NULL DEFAULT 0, "
             "priority TEXT NOT NULL DEFAULT 'medium', "
             "due_date TEXT, "
+            "notes TEXT, "
             "created_at TEXT NOT NULL DEFAULT '')"
         )
         columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
         if "due_date" not in columns:
             db.execute("ALTER TABLE tasks ADD COLUMN due_date TEXT")
+        if "notes" not in columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN notes TEXT")
         if "created_at" not in columns:
             db.execute("ALTER TABLE tasks ADD COLUMN created_at TEXT NOT NULL DEFAULT ''")
             db.execute(
@@ -63,6 +66,7 @@ def _row(row):
         "completed": bool(row["completed"]),
         "priority": row["priority"],
         "due_date": row["due_date"],
+        "notes": row["notes"],
         "created_at": row["created_at"],
     }
 
@@ -211,7 +215,7 @@ def export_tasks():
     rows = get_db().execute("SELECT * FROM tasks ORDER BY id ASC").fetchall()
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "created_at"])
+    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "notes", "created_at"])
     for row in rows:
         writer.writerow([
             row["id"],
@@ -220,6 +224,7 @@ def export_tasks():
             str(bool(row["completed"])).lower(),
             row["priority"],
             row["due_date"] if row["due_date"] is not None else "",
+            row["notes"] if row["notes"] is not None else "",
             row["created_at"],
         ])
     return Response(
@@ -261,11 +266,15 @@ def create_task():
     if error:
         return error
 
+    notes = data.get("notes")
+    if notes is not None and not isinstance(notes, str):
+        return jsonify({"error": "notes must be a string or null"}), 400
+
     db = get_db()
     cur = db.execute(
-        "INSERT INTO tasks (title, description, completed, priority, due_date, created_at) "
-        "VALUES (?, ?, 0, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'))",
-        (title, data.get("description", ""), priority, due_date),
+        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at) "
+        "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'))",
+        (title, data.get("description", ""), priority, due_date, notes),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -304,14 +313,22 @@ def update_task(task_id):
             return error
         due_date = parsed_due_date
 
+    if "notes" in data:
+        notes = data["notes"]
+        if notes is not None and not isinstance(notes, str):
+            return jsonify({"error": "notes must be a string or null"}), 400
+    else:
+        notes = task["notes"]
+
     db.execute(
-        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ? WHERE id = ?",
         (
             data.get("title", task["title"]),
             data.get("description", task["description"]),
             int(data.get("completed", task["completed"])),
             data.get("priority", task["priority"]),
             due_date,
+            notes,
             task_id,
         ),
     )

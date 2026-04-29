@@ -1,70 +1,101 @@
-# Spec: Add GET /tasks/stats endpoint
+# Spec: Add optional notes field to tasks
 
 ## Problem
 
-There is no way to get aggregate information about tasks. Callers must fetch all tasks and compute counts themselves. Issue #15 asks for a `GET /tasks/stats` endpoint that returns total, completed, incomplete counts and a breakdown by priority level.
+Tasks only have a short `description` field. Users need a freeform `notes` field for longer context, links, or checklists that should not pollute the description. Issue #34 asks for an optional `notes` field (string, default `null`) on tasks, surfaced in all CRUD endpoints.
 
 ## Approach
 
-Add a single new route `GET /tasks/stats` in `app.py` that runs two SQL queries against the existing `tasks` table:
-
-1. A `COUNT(*)` grouped by `completed` to get total/completed/incomplete.
-2. A `COUNT(*)` grouped by `priority` to build the `by_priority` map.
-
-All three known priority levels (`low`, `medium`, `high`) are always present in the response, defaulting to `0` if no tasks of that priority exist.
-
-The route is defined before `GET /tasks/<int:task_id>` — though not strictly necessary (Flask won't confuse the literal path `/tasks/stats` with the `<int:…>` converter), placing it first keeps the ordering logical.
+1. Add a `notes TEXT` column to the SQLite `tasks` table (with migration guard using `PRAGMA table_info`).
+2. Include `notes` in the `_row()` helper so every response serializes it.
+3. Accept `notes` in `POST /tasks` and `PUT /tasks/:id`; allow `null` to clear it. Validate that `notes`, when provided, is either a string or `null` (reject any other type with 400).
+4. `GET /tasks` (list) and `GET /tasks/:id` both return `notes`.
+5. No length restriction on `notes` strings.
 
 ## Changes
 
-**`app.py`** — add one new route:
+**`app.py`**
 
-```python
-@app.route("/tasks/stats", methods=["GET"])
-def get_task_stats():
-    db = get_db()
-    rows = db.execute("SELECT completed, COUNT(*) as cnt FROM tasks GROUP BY completed").fetchall()
-    completed = 0
-    incomplete = 0
-    for row in rows:
-        if row["completed"]:
-            completed = row["cnt"]
-        else:
-            incomplete = row["cnt"]
-    total = completed + incomplete
+- `get_db()`: add `notes TEXT` to the `CREATE TABLE` statement and a migration guard:
+  ```python
+  if "notes" not in columns:
+      db.execute("ALTER TABLE tasks ADD COLUMN notes TEXT")
+  ```
 
-    priority_rows = db.execute(
-        "SELECT priority, COUNT(*) as cnt FROM tasks GROUP BY priority"
-    ).fetchall()
-    by_priority = {"low": 0, "medium": 0, "high": 0}
-    for row in priority_rows:
-        by_priority[row["priority"]] = row["cnt"]
+- `_row()`: add `"notes": row["notes"]` to the returned dict.
 
-    return jsonify({"total": total, "completed": completed, "incomplete": incomplete, "by_priority": by_priority})
-```
+- `create_task()`: read and validate `notes`, then pass it to `INSERT`.
+  ```python
+  notes = data.get("notes")
+  if notes is not None and not isinstance(notes, str):
+      return jsonify({"error": "notes must be a string or null"}), 400
 
-**`tests/test_app.py`** — add three new test functions:
+  cur = db.execute(
+      "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at) "
+      "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'))",
+      (title, data.get("description", ""), priority, due_date, notes),
+  )
+  ```
 
-- `test_stats_empty` — calls `GET /tasks/stats` with no tasks; asserts all counts are zero.
-- `test_stats_counts` — creates tasks with varied priorities and completion states; toggles some; asserts each field in the response matches expected values.
-- `test_stats_all_completed` — creates several tasks, marks all of them completed, and asserts `incomplete=0` and `completed=total`.
+- `update_task()`: read and validate `notes`; preserve existing value when key absent; allow `null` to clear.
+  ```python
+  if "notes" in data:
+      notes = data["notes"]
+      if notes is not None and not isinstance(notes, str):
+          return jsonify({"error": "notes must be a string or null"}), 400
+  else:
+      notes = task["notes"]
+  ```
+  Add `notes` to the `UPDATE` SQL and its parameter tuple.
 
-No new application/runtime files, no schema changes, no dependency changes.
+**`tests/test_app.py`**
+
+- Update `test_list_tasks_can_filter_by_priority`: add `"notes": None` to the expected item dict (exact equality check will otherwise fail once `notes` is included in list responses).
+- Add all new test functions listed under Test Cases below.
 
 ## Test Cases
 
-- Empty database returns `{"total": 0, "completed": 0, "incomplete": 0, "by_priority": {"low": 0, "medium": 0, "high": 0}}`.
-- After creating 1 low, 2 medium, 1 high task and completing 2 of them, the response shows `total=4`, `completed=2`, `incomplete=2`, `by_priority={"low":1,"medium":2,"high":1}`.
-- `by_priority` always contains all three keys even when a priority level has no tasks.
-- All tasks completed — create several tasks, toggle all to completed; assert `incomplete=0` and `completed=total`.
+### Create (POST /tasks)
+
+- Creating a task with `notes` set to a string stores and returns the value (status 201).
+- Creating a task without a `notes` key returns `notes: null`.
+- Creating a task with explicit `notes: null` returns `notes: null`.
+- Creating a task with `notes` set to a long multiline string (e.g. 5000+ characters with newlines) stores and returns the full value unchanged — no length restriction.
+- Creating a task with `notes` containing unicode characters (e.g. emoji, CJK) stores and returns them correctly.
+- Creating a task with `notes` set to an integer returns 400 with `"notes must be a string or null"`.
+- Creating a task with `notes` set to a list returns 400 with `"notes must be a string or null"`.
+
+### Read (GET /tasks and GET /tasks/:id)
+
+- `GET /tasks/:id` response includes the `notes` field with its stored value.
+- `GET /tasks/:id` returns `notes: null` when none was set.
+- `GET /tasks` list response includes `notes` on every item.
+- `GET /tasks?priority=high` filtered list includes `notes` in each returned item.
+- Paginated `GET /tasks?page=1&per_page=2` includes `notes` in items.
+
+### Update (PUT /tasks/:id)
+
+- Updating `notes` to a new string value stores and returns the new value.
+- Updating `notes` to `null` clears the field (response has `notes: null`).
+- Sending a PUT body without a `notes` key preserves the existing `notes` value.
+- Updating other fields (e.g. `title`, `priority`) while omitting `notes` leaves `notes` unchanged.
+- Setting `notes` on a task that was created without one (notes was null) correctly stores the new value.
+- Sending `notes` as an integer in a PUT body returns 400 with `"notes must be a string or null"`.
+
+### Toggle (PATCH /tasks/:id/toggle)
+
+- Toggling a task that has `notes` set preserves the `notes` value in the response.
+
+Test file updated: `tests/test_app.py`.
 
 ## Risks / Open Questions
 
-- **Route ordering**: Flask distinguishes `/tasks/stats` (literal) from `/tasks/<int:task_id>` (integer converter) by type, so order should not matter — but placing the literal route first is safer and clearer.
-- **Future priorities**: If new priority levels are added, `by_priority` will only include the three hardcoded keys unless the code is updated. This is acceptable for now since `PRIORITY_LEVELS` is also a fixed set.
+- **Existing test with exact dict comparison**: `test_list_tasks_can_filter_by_priority` asserts full dict equality on list items. Adding `notes` to `_row()` will break it; the fix is to add `"notes": None` to the expected dict. This is the only existing test that does exact dict matching on a task response.
+- **Empty string for notes**: The spec treats `""` as a valid string (distinct from `null`). If the intent is that an empty string should be coerced to `null`, validation logic would need adjustment — not done here since the issue does not mention it.
+- **List vs detail payload size**: The acceptance criteria specifies `notes` in both list and detail responses. If payload size becomes a concern, `notes` could be stripped from list responses in a future change.
 
 ## Out of Scope
 
-- Filtering stats by date range, assignee, or any other dimension.
-- Pagination or streaming for large datasets.
-- Caching the stats result.
+- Length restriction on `notes`.
+- Filtering or sorting by `notes`.
+- Migrating existing `description` data into `notes`.

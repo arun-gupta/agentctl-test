@@ -1,8 +1,8 @@
 name: Sync issue states in TEST_PLAN.md
 
 on:
-  schedule:
-    - cron: '0 6 * * *'   # daily at 06:00 UTC
+  issues:
+    types: [closed]
   workflow_dispatch:
 
 permissions:

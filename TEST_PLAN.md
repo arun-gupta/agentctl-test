@@ -31,11 +31,11 @@
 | `start --sdd=plain --headless` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=plain --agent codex` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
-| `start --notify` | ⬜ | [start --notify](#start---notify) |
+| `start --notify` | ✅ | [start --notify](#start---notify) |
 | `start <url>` | ⬜ | [start \<url\>](#start-url--full-github-url) |
 | `logs` | ✅ | [logs](#logs) |
-| `logs --lines N` | ⬜ | [logs](#logs) |
-| `logs --no-follow` | ⬜ | [logs](#logs) |
+| `logs --lines N` | ✅ | [logs](#logs) |
+| `logs --no-follow` | ✅ | [logs](#logs) |
 | `attach` | ⬜ | [attach](#attach) |
 | `resume` (approve) | ✅ | [resume](#resume) |
 | `resume "feedback"` | ✅ | [resume](#resume) |
@@ -85,7 +85,7 @@ Ctrl+C in quiet mode detaches without killing the agent — it keeps running in 
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 7 --quiet` | 🟢 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
+| `agentctl start 7 --quiet` | 🔴 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
 | `agentctl start 37 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🟢 [#37](https://github.com/arun-gupta/agentctl-test/issues/37) | ⬜ |
 
 ---
@@ -98,7 +98,7 @@ Use a specific coding agent. Each agent is tested independently.
 |---------|-------|--------|
 | `agentctl start 1 --agent claude` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ✅ |
 | `agentctl start 4 --agent codex` | 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | ✅ |
-| `agentctl start 31 --agent copilot` | 🟢 [#31](https://github.com/arun-gupta/agentctl-test/issues/31) | ✅ |
+| `agentctl start 31 --agent copilot` | 🔴 [#31](https://github.com/arun-gupta/agentctl-test/issues/31) | ✅ |
 | `agentctl start 32 --agent gemini` | 🟢 [#32](https://github.com/arun-gupta/agentctl-test/issues/32) | ⬜ |
 | `agentctl start 33 --agent opencode` | 🟢 [#33](https://github.com/arun-gupta/agentctl-test/issues/33) | ⬜ |
 | `agentctl start 12 --agent openhands` | 🔴 [#12](https://github.com/arun-gupta/agentctl-test/issues/12) | ✅ |
@@ -111,7 +111,7 @@ Lightweight spec-review checkpoint; no external tooling required. Produces a `sp
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 34 --sdd=plain` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
+| `agentctl start 34 --sdd=plain` | 🔴 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
 | `agentctl start 46 --sdd=plain --headless` | 🟢 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ⬜ |
 | `agentctl start 47 --sdd=plain --agent codex` | 🟢 [#47](https://github.com/arun-gupta/agentctl-test/issues/47) | ⬜ |
 
@@ -135,7 +135,7 @@ Send a native desktop notification when a headless agent finishes. Also set repo
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 35 --headless --notify` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl start 35 --headless --notify` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
 
 ---
 
@@ -158,8 +158,8 @@ Stream `agent.log` for a running or finished headless agent.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl logs 3` | 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
-| `agentctl logs 35 --lines 100` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
-| `agentctl logs 35 --no-follow` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl logs 35 --lines 100` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
+| `agentctl logs 35 --no-follow` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
 
 ---
 
@@ -182,7 +182,7 @@ Approve or revise the spec after an SDD checkpoint. Requires a paused worktree w
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl resume 5` | 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
-| `agentctl resume 34 "revision feedback"` | 🟢 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
+| `agentctl resume 34 "revision feedback"` | 🔴 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
 | `agentctl resume --headless 42` | 🟢 [#42](https://github.com/arun-gupta/agentctl-test/issues/42) | ⬜ |
 | `agentctl resume --notify 43` | 🟢 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
 | `agentctl resume --quiet 25` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
