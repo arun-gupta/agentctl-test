@@ -37,7 +37,7 @@
 | `status` | ⬜ | [status](#status) |
 | `status --verbose` | ⬜ | [status](#status) |
 | `cleanup <issue>` | ⬜ | [cleanup](#cleanup) |
-| `cleanup --all` | ⬜ | [cleanup](#cleanup) |
+| `cleanup --all` | ✅ | [cleanup](#cleanup) |
 | `discard <issue>` | ✅ | [discard](#discard) |
 | `discard --stale` | ⬜ | [discard](#discard) |
 
@@ -251,7 +251,7 @@ agentctl cleanup --all      # sweep all merged PRs
 | ⬜ | single | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
 | ⬜ | single | [#4](https://github.com/arun-gupta/agentctl-test/issues/4) |
 | ⬜ | single | [#5](https://github.com/arun-gupta/agentctl-test/issues/5) |
-| ⬜ | `--all` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
+| ✅ | `--all` | [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + [#29](https://github.com/arun-gupta/agentctl-test/issues/29) |
 
 ---
 
