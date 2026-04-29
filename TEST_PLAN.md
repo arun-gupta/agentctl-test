@@ -132,7 +132,6 @@ Send a native desktop notification when a headless agent finishes. Also set repo
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 35 --headless --notify` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
-| `agentctl start 26 --headless --notify` | 🟢 [#26](https://github.com/arun-gupta/agentctl-test/issues/26) | ⬜ |
 
 ---
 
