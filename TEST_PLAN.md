@@ -39,7 +39,7 @@
 | `cleanup <issue>` | ⬜ | [cleanup](#cleanup) |
 | `cleanup --all` | ✅ | [cleanup](#cleanup) |
 | `discard <issue>` | ✅ | [discard](#discard) |
-| `discard --stale` | ⬜ | [discard](#discard) |
+| `discard --stale` | ✅ | [discard](#discard) |
 
 ---
 
@@ -267,4 +267,4 @@ agentctl discard --stale    # all worktrees with no agent and no PR
 | Status | Variant | Issue |
 |--------|---------|-------|
 | ✅ | single | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) |
-| ⬜ | `--stale` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) |
+| ✅ | `--stale` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) |
