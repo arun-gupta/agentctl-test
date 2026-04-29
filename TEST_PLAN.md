@@ -27,7 +27,7 @@
 | `start --agent gemini` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent opencode` | ⬜ | [start --agent](#start---agent-name) |
 | `start --agent openhands` | ✅ | [start --agent](#start---agent-name) |
-| `start --sdd=plain` | ⬜ | [start --sdd=plain](#start---sddplain) |
+| `start --sdd=plain` | ✅ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=plain --headless` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=plain --agent codex` | ⬜ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
@@ -111,7 +111,7 @@ Lightweight spec-review checkpoint; no external tooling required. Produces a `sp
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl start 34 --sdd=plain` | 🔴 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ⬜ |
+| `agentctl start 34 --sdd=plain` | 🔴 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
 | `agentctl start 46 --sdd=plain --headless` | 🟢 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ⬜ |
 | `agentctl start 47 --sdd=plain --agent codex` | 🟢 [#47](https://github.com/arun-gupta/agentctl-test/issues/47) | ⬜ |
 
