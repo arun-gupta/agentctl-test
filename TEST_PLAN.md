@@ -7,6 +7,8 @@
 | ✅ | agentctl command confirmed working |
 | ⬜ | Not yet run |
 | ❌ | Blocked — cannot run without external dependency |
+| 🟢 | GitHub issue is open |
+| 🔴 | GitHub issue is closed |
 
 ---
 
@@ -18,6 +20,7 @@
 | `start <issue> <slug>` | ✅ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ✅ | [start --headless](#start---headless) |
 | `start --quiet` | ⬜ | [start --quiet](#start---quiet) |
+| `start --quiet` + Ctrl+C (detach) | ⬜ | [start --quiet](#start---quiet) |
 | `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent codex` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent copilot` | ✅ | [start --agent](#start---agent-name) |
@@ -76,9 +79,12 @@ Run the agent in the background; output written to `agent.log`.
 
 Suppress log output in the foreground; show only spinner (TTY) or CI heartbeat lines. Has no effect with `--headless`.
 
+Ctrl+C in quiet mode detaches without killing the agent — it keeps running in the background and prints reconnect instructions.
+
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 7 --quiet` | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ⬜ |
+| `agentctl start 7 --quiet` then Ctrl+C (verify agent detaches, not killed) | [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ⬜ |
 
 ---
 

@@ -1,0 +1,72 @@
+name: Sync issue states in TEST_PLAN.md
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update issue states
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import re, subprocess
+
+          with open("TEST_PLAN.md") as f:
+              content = f.read()
+
+          # Strip any existing state emoji before issue links
+          content = re.sub(r'[🟢🔴] (\[#\d+\])', r'\1', content)
+
+          # Find all unique issue numbers
+          issue_nums = set(re.findall(
+              r'\[#(\d+)\]\(https://github\.com/arun-gupta/agentctl-test/issues/\d+\)',
+              content
+          ))
+
+          # Fetch state for each issue
+          states = {}
+          for num in sorted(issue_nums, key=int):
+              result = subprocess.run(
+                  ["gh", "issue", "view", num, "--json", "state", "--jq", ".state"],
+                  capture_output=True, text=True
+              )
+              state = result.stdout.strip()
+              states[num] = "🟢" if state == "OPEN" else "🔴"
+              print(f"  #{num}: {state}")
+
+          # Prefix each issue link with its state emoji
+          def add_emoji(m):
+              num = m.group(1)
+              return f"{states.get(num, '⬜')} {m.group(0)}"
+
+          content = re.sub(
+              r'\[#(\d+)\]\(https://github\.com/arun-gupta/agentctl-test/issues/\d+\)',
+              add_emoji,
+              content
+          )
+
+          with open("TEST_PLAN.md", "w") as f:
+              f.write(content)
+
+          print("Done")
+          EOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet TEST_PLAN.md || (
+            git add TEST_PLAN.md &&
+            git commit -m "chore: sync issue open/closed state in TEST_PLAN.md" &&
+            git push
+          )
