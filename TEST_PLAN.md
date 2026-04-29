@@ -38,7 +38,7 @@
 | `status --verbose` | ⬜ | [status](#status) |
 | `cleanup <issue>` | ✅ | [cleanup](#cleanup) |
 | `cleanup --all` | ⬜ | [cleanup](#cleanup) |
-| `discard <issue>` | ⬜ | [discard](#discard) |
+| `discard <issue>` | ✅ | [discard](#discard) |
 | `discard --stale` | ⬜ | [discard](#discard) |
 
 ---
@@ -69,7 +69,7 @@ agentctl start <issue> --headless
 | Status | Issue | Title |
 |--------|-------|-------|
 | ✅ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ⬜ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support |
+| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | Add GET /tasks/export endpoint (CSV) |
 
 ---
 
@@ -181,7 +181,7 @@ agentctl logs <issue> --no-follow   # print and exit
 | Status | Flag | Issue | Title |
 |--------|------|-------|-------|
 | ✅ | (default) | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ⬜ | `--lines N` | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support |
+| ⬜ | `--lines N` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | Add GET /tasks/export endpoint (CSV) |
 | ⬜ | `--no-follow` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | Add GET /tasks/export endpoint (CSV) |
 
 ---
@@ -197,7 +197,7 @@ agentctl attach <issue>
 | Status | Issue | Title |
 |--------|-------|-------|
 | ✅ | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | Add input validation to POST /tasks |
-| ⬜ | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support |
+| ⬜ | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | Add GET /tasks/export endpoint (CSV) |
 
 ---
 
@@ -266,6 +266,5 @@ agentctl discard --stale    # all worktrees with no agent and no PR
 
 | Status | Variant | Issue | Title | Notes |
 |--------|---------|-------|-------|-------|
-| ⬜ | single | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) | Add created_at timestamp to tasks | Duplicate of closed #13 — safe to start and discard |
-| ⬜ | single | [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | Validate title max length | Duplicate of closed #14 — safe to start and discard |
-| ⬜ | `--stale` | any above | — | After discarding one, leave another without a PR to test `--stale` |
+| ✅ | single | [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | Add tags/categories to tasks with filter support | Worktree discarded, branch removed locally and remotely |
+| ⬜ | `--stale` | [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | — | Start one, don't open a PR, then run `discard --stale` |
