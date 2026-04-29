@@ -27,7 +27,7 @@
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
 | `start --notify` | ⬜ | [start --notify](#start---notify) |
 | `start <url>` | ⬜ | [start \<url\>](#start-url--full-github-url) |
-| `logs` | ⬜ | [logs](#logs) |
+| `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ⬜ | [logs](#logs) |
 | `logs --no-follow` | ⬜ | [logs](#logs) |
 | `attach` | ⬜ | [attach](#attach) |
@@ -180,7 +180,7 @@ agentctl logs <issue> --no-follow   # print and exit
 
 | Status | Variant | Issue |
 |--------|---------|-------|
-| ⬜ | (default) | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
+| ✅ | (default) | [#3](https://github.com/arun-gupta/agentctl-test/issues/3) |
 | ⬜ | `--lines N` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
 | ⬜ | `--no-follow` | [#35](https://github.com/arun-gupta/agentctl-test/issues/35) |
 
