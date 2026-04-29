@@ -34,8 +34,8 @@
 | `start --notify` | ✅ | [start --notify](#start---notify) |
 | `start <url>` | ⬜ | [start \<url\>](#start-url--full-github-url) |
 | `logs` | ✅ | [logs](#logs) |
-| `logs --lines N` | ⬜ | [logs](#logs) |
-| `logs --no-follow` | ⬜ | [logs](#logs) |
+| `logs --lines N` | ✅ | [logs](#logs) |
+| `logs --no-follow` | ✅ | [logs](#logs) |
 | `attach` | ⬜ | [attach](#attach) |
 | `resume` (approve) | ✅ | [resume](#resume) |
 | `resume "feedback"` | ✅ | [resume](#resume) |
@@ -158,8 +158,8 @@ Stream `agent.log` for a running or finished headless agent.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl logs 3` | 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ✅ |
-| `agentctl logs 35 --lines 100` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
-| `agentctl logs 35 --no-follow` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl logs 35 --lines 100` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
+| `agentctl logs 35 --no-follow` | 🟢 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ✅ |
 
 ---
 
