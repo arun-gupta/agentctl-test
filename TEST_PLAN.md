@@ -32,7 +32,7 @@
 | `start --sdd=plain --agent codex` | ✅ | [start --sdd=plain](#start---sddplain) |
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
 | `start --notify` | ✅ | [start --notify](#start---notify) |
-| `start <url>` | ⬜ | [start \<url\>](#start-url--full-github-url) |
+| `start <url>` | ✅ | [start \<url\>](#start-url--full-github-url) |
 | `start <url> --agent copilot` | ⬜ | [start \<url\>](#start-url--full-github-url) |
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ✅ | [logs](#logs) |
@@ -147,7 +147,7 @@ Start from any directory without `cd`-ing into the repo first.
 
 | Variant | Status |
 |---------|--------|
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/65` | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/65` | ✅ |
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | ⬜ |
 
 ---
