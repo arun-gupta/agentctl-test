@@ -1027,3 +1027,30 @@ def test_unknown_param_error_includes_request_id(client):
     r = client.get("/tasks?bad=param")
     assert r.status_code == 400
     _assert_request_id(r)
+
+
+def test_list_tasks_reports_multiple_unknown_params(client):
+    r = client.get("/tasks?foo=1&bar=2")
+    assert r.status_code == 400
+    error = r.get_json()["error"]
+    assert "unsupported query parameters:" in error
+    assert "foo" in error
+    assert "bar" in error
+
+
+def test_health_reports_multiple_unknown_params(client):
+    r = client.get("/health?a=1&b=2")
+    assert r.status_code == 400
+    error = r.get_json()["error"]
+    assert "unsupported query parameters:" in error
+    assert "a" in error
+    assert "b" in error
+
+
+def test_export_reports_multiple_unknown_params(client):
+    r = client.get("/tasks/export?fmt=csv&ver=2")
+    assert r.status_code == 400
+    error = r.get_json()["error"]
+    assert "unsupported query parameters:" in error
+    assert "fmt" in error
+    assert "ver" in error
