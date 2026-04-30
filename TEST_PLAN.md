@@ -20,7 +20,7 @@
 | `start <issue> <slug>` | ✅ | [start — basic interactive](#start--basic-interactive) |
 | `start --headless` | ✅ | [start --headless](#start---headless) |
 | `start --quiet` | ✅ | [start --quiet](#start---quiet) |
-| `start --quiet` + Ctrl+C (detach) | ⬜ | [start --quiet](#start---quiet) |
+| `start --quiet` + Ctrl+C (detach) | ✅ | [start --quiet](#start---quiet) |
 | `start --agent claude` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent codex` | ✅ | [start --agent](#start---agent-name) |
 | `start --agent copilot` | ✅ | [start --agent](#start---agent-name) |
@@ -33,7 +33,7 @@
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
 | `start --notify` | ✅ | [start --notify](#start---notify) |
 | `start <url>` | ✅ | [start \<url\>](#start-url--full-github-url) |
-| `start <url> --agent copilot` | ⬜ | [start \<url\>](#start-url--full-github-url) |
+| `start <url> --agent copilot` | ✅ | [start \<url\>](#start-url--full-github-url) |
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ✅ | [logs](#logs) |
 | `logs --no-follow` | ✅ | [logs](#logs) |
@@ -49,6 +49,7 @@
 | `cleanup <issue>` | ✅ | [cleanup](#cleanup) |
 | `cleanup` (from inside worktree) | ⬜ | [cleanup](#cleanup) |
 | `cleanup --all` | ✅ | [cleanup](#cleanup) |
+| `cleanup <url>` | ✅ | [cleanup](#cleanup) |
 | `discard <issue>` | ✅ | [discard](#discard) |
 | `discard` (from inside worktree) | ⬜ | [discard](#discard) |
 | `discard --stale` | ✅ | [discard](#discard) |
@@ -87,7 +88,7 @@ Ctrl+C in quiet mode detaches without killing the agent — it keeps running in 
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 7 --quiet` | 🔴 [#7](https://github.com/arun-gupta/agentctl-test/issues/7) | ✅ |
-| `agentctl start 37 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🔴 [#37](https://github.com/arun-gupta/agentctl-test/issues/37) | ⬜ |
+| `agentctl start 37 --quiet` then Ctrl+C (verify agent detaches, not killed) | 🔴 [#37](https://github.com/arun-gupta/agentctl-test/issues/37) | ✅ |
 
 ---
 
@@ -148,7 +149,7 @@ Start from any directory without `cd`-ing into the repo first.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/65` | 🔴 [#65](https://github.com/arun-gupta/agentctl-test/issues/65) | ✅ |
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | 🔴 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | 🔴 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ✅ |
 
 ---
 
@@ -215,6 +216,7 @@ Remove a worktree after its PR is merged. Issue number is inferred from the curr
 | `agentctl cleanup <issue>` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) + 🔴 [#2](https://github.com/arun-gupta/agentctl-test/issues/2) + 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) + 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) + 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
 | `agentctl cleanup` (cd into worktree first) | 🟢 [#67](https://github.com/arun-gupta/agentctl-test/issues/67) | ⬜ |
 | `agentctl cleanup --all` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + 🔴 [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + 🟢 [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | ✅ |
+| `agentctl cleanup https://github.com/arun-gupta/agentctl-test/issues/54` | 🔴 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ✅ |
 
 ---
 
