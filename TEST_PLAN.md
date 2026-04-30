@@ -112,7 +112,7 @@ Lightweight spec-review checkpoint; no external tooling required. Produces a `sp
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start 34 --sdd=plain` | 🔴 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
-| `agentctl start 46 --sdd=plain --headless` | 🟢 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ⬜ |
+| `agentctl start 46 --sdd=plain --headless` | 🔴 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ⬜ |
 | `agentctl start 47 --sdd=plain --agent codex` | 🟢 [#47](https://github.com/arun-gupta/agentctl-test/issues/47) | ⬜ |
 
 ---
