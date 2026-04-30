@@ -147,7 +147,7 @@ Start from any directory without `cd`-ing into the repo first.
 
 | Variant | Status |
 |---------|--------|
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/44` | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/65` | ⬜ |
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | ⬜ |
 
 ---
@@ -170,11 +170,11 @@ Stream `agent.log` for a running or finished headless agent.
 
 Attach to a running headless agent and exit automatically when it finishes.
 
-> **Prerequisite:** run `agentctl start 35 --headless` before testing this — attach requires the agent to still be running.
+> **Prerequisite:** run `agentctl start 66 --headless` before testing this — attach requires the agent to still be running.
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl attach 35` | 🔴 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl attach 66` | 🟢 [#66](https://github.com/arun-gupta/agentctl-test/issues/66) | ⬜ |
 
 ---
 
@@ -213,7 +213,7 @@ Remove a worktree after its PR is merged. Issue number is inferred from the curr
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl cleanup <issue>` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) + 🔴 [#2](https://github.com/arun-gupta/agentctl-test/issues/2) + 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) + 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) + 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
-| `agentctl cleanup` (cd into worktree first) | any of the above | ⬜ |
+| `agentctl cleanup` (cd into worktree first) | 🟢 [#67](https://github.com/arun-gupta/agentctl-test/issues/67) | ⬜ |
 | `agentctl cleanup --all` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + 🔴 [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + 🟢 [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | ✅ |
 
 ---
