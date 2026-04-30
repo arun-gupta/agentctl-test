@@ -46,7 +46,7 @@
 | `status` | ✅ | [status](#status) |
 | `status --verbose` | ✅ | [status](#status) |
 | `list` (alias for status) | ⬜ | [status](#status) |
-| `cleanup <issue>` | ⬜ | [cleanup](#cleanup) |
+| `cleanup <issue>` | ✅ | [cleanup](#cleanup) |
 | `cleanup` (from inside worktree) | ⬜ | [cleanup](#cleanup) |
 | `cleanup --all` | ✅ | [cleanup](#cleanup) |
 | `discard <issue>` | ✅ | [discard](#discard) |
@@ -212,7 +212,7 @@ Remove a worktree after its PR is merged. Issue number is inferred from the curr
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl cleanup <issue>` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) + 🔴 [#2](https://github.com/arun-gupta/agentctl-test/issues/2) + 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) + 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) + 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ⬜ |
+| `agentctl cleanup <issue>` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) + 🔴 [#2](https://github.com/arun-gupta/agentctl-test/issues/2) + 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) + 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) + 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
 | `agentctl cleanup` (cd into worktree first) | any of the above | ⬜ |
 | `agentctl cleanup --all` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + 🔴 [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + 🟢 [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | ✅ |
 
