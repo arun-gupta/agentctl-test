@@ -115,9 +115,11 @@ def _validate_order(order):
 
 
 def _validate_query_params(allowed):
-    unknown = [k for k in request.args if k not in allowed]
-    if unknown:
+    unknown = sorted(k for k in request.args if k not in allowed)
+    if len(unknown) == 1:
         return jsonify({"error": f"unsupported query parameter: {unknown[0]}"}), 400
+    if unknown:
+        return jsonify({"error": f"unsupported query parameters: {', '.join(unknown)}"}), 400
     return None
 
 

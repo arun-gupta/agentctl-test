@@ -1027,3 +1027,38 @@ def test_unknown_param_error_includes_request_id(client):
     r = client.get("/tasks?bad=param")
     assert r.status_code == 400
     _assert_request_id(r)
+
+
+def test_list_tasks_rejects_multiple_unknown_params(client):
+    r = client.get("/tasks?foo=1&bar=2")
+    assert r.status_code == 400
+    data = r.get_json()
+    assert "unsupported query parameters" in data["error"]
+    assert "foo" in data["error"]
+    assert "bar" in data["error"]
+
+
+def test_list_tasks_multiple_unknown_params_all_named(client):
+    r = client.get("/tasks?alpha=1&beta=2&gamma=3")
+    assert r.status_code == 400
+    error = r.get_json()["error"]
+    for param in ("alpha", "beta", "gamma"):
+        assert param in error
+
+
+def test_health_rejects_multiple_unknown_params(client):
+    r = client.get("/health?foo=1&bar=2")
+    assert r.status_code == 400
+    data = r.get_json()
+    assert "unsupported query parameters" in data["error"]
+    assert "foo" in data["error"]
+    assert "bar" in data["error"]
+
+
+def test_export_rejects_multiple_unknown_params(client):
+    r = client.get("/tasks/export?fmt=json&limit=10")
+    assert r.status_code == 400
+    data = r.get_json()
+    assert "unsupported query parameters" in data["error"]
+    assert "fmt" in data["error"]
+    assert "limit" in data["error"]
