@@ -898,3 +898,68 @@ def test_request_id_independent_between_two_requests(client):
     r1 = client.get("/tasks")
     r2 = client.post("/tasks", json={"title": "Another"})
     assert r1.headers.get("X-Request-ID") != r2.headers.get("X-Request-ID")
+
+
+# --- CORS tests ---
+
+def test_cors_headers_on_health_check(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+    assert r.headers["Access-Control-Allow-Methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    assert r.headers["Access-Control-Allow-Headers"] == "Content-Type"
+
+
+def test_cors_headers_on_tasks_list(client):
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_cors_headers_on_create_task(client):
+    r = client.post("/tasks", json={"title": "CORS test"})
+    assert r.status_code == 201
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_cors_headers_on_toggle_task(client):
+    client.post("/tasks", json={"title": "CORS toggle"})
+    r = client.patch("/tasks/1/toggle")
+    assert r.status_code == 200
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_cors_headers_on_export_response(client):
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_cors_headers_on_validation_error(client):
+    r = client.post("/tasks", json={})
+    assert r.status_code == 400
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_cors_headers_on_not_found(client):
+    r = client.get("/tasks/999")
+    assert r.status_code == 404
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_cors_preflight_on_tasks(client):
+    r = client.options("/tasks")
+    assert r.status_code == 200
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+    assert r.headers["Access-Control-Allow-Methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    assert r.headers["Access-Control-Allow-Headers"] == "Content-Type"
+
+
+def test_cors_preflight_on_toggle_advertises_patch(client):
+    client.post("/tasks", json={"title": "Preflight"})
+    r = client.options("/tasks/1/toggle")
+    assert r.status_code == 200
+    allow_header = r.headers["Allow"]
+    assert "PATCH" in allow_header
+    assert "OPTIONS" in allow_header
+    assert r.headers["Access-Control-Allow-Methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS"
