@@ -963,3 +963,67 @@ def test_cors_preflight_on_toggle_advertises_patch(client):
     assert "PATCH" in allow_header
     assert "OPTIONS" in allow_header
     assert r.headers["Access-Control-Allow-Methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+
+
+# --- Query parameter validation tests ---
+
+def test_list_tasks_rejects_unknown_param(client):
+    r = client.get("/tasks?foo=bar")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "unsupported query parameter: foo"
+
+
+def test_list_tasks_rejects_unknown_param_alongside_valid_params(client):
+    r = client.get("/tasks?priority=high&unknown=1")
+    assert r.status_code == 400
+    assert "unsupported query parameter" in r.get_json()["error"]
+
+
+def test_list_tasks_all_known_params_accepted(client):
+    r = client.get("/tasks?priority=high&sort=title&order=asc&page=1&per_page=10")
+    assert r.status_code == 200
+
+
+def test_list_tasks_unknown_param_returns_structured_error(client):
+    r = client.get("/tasks?typo=yes")
+    assert r.status_code == 400
+    data = r.get_json()
+    assert "error" in data
+    assert "typo" in data["error"]
+
+
+def test_health_rejects_unknown_param(client):
+    r = client.get("/health?debug=true")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "unsupported query parameter: debug"
+
+
+def test_export_rejects_unknown_param(client):
+    r = client.get("/tasks/export?format=json")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "unsupported query parameter: format"
+
+
+def test_stats_rejects_unknown_param(client):
+    r = client.get("/tasks/stats?group=priority")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "unsupported query parameter: group"
+
+
+def test_get_task_rejects_unknown_param(client):
+    client.post("/tasks", json={"title": "Test"})
+    r = client.get("/tasks/1?expand=true")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "unsupported query parameter: expand"
+
+
+def test_unknown_param_error_includes_cors_headers(client):
+    r = client.get("/tasks?bad=param")
+    assert r.status_code == 400
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_unknown_param_error_includes_request_id(client):
+    r = client.get("/tasks?bad=param")
+    assert r.status_code == 400
+    _assert_request_id(r)

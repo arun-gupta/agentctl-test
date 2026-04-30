@@ -35,6 +35,7 @@ app.config["DATABASE"] = "tasks.db"
 PRIORITY_LEVELS = {"low", "medium", "high"}
 SORT_FIELDS = {"created_at", "priority", "title"}
 SORT_ORDERS = {"asc", "desc"}
+ALLOWED_LIST_TASKS_PARAMS = frozenset({"priority", "sort", "order", "page", "per_page"})
 PRIORITY_SORT_SQL = (
     "CASE priority "
     "WHEN 'low' THEN 1 "
@@ -113,6 +114,13 @@ def _validate_order(order):
     return None
 
 
+def _validate_query_params(allowed):
+    unknown = [k for k in request.args if k not in allowed]
+    if unknown:
+        return jsonify({"error": f"unsupported query parameter: {unknown[0]}"}), 400
+    return None
+
+
 def _tasks_order_by(sort, order):
     direction = order.upper()
     if sort == "priority":
@@ -144,11 +152,17 @@ def _parse_due_date(raw):
 
 @app.route("/health", methods=["GET"])
 def health_check():
+    error = _validate_query_params(frozenset())
+    if error:
+        return error
     return jsonify({"status": "ok"})
 
 
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
+    error = _validate_query_params(ALLOWED_LIST_TASKS_PARAMS)
+    if error:
+        return error
     priority = request.args.get("priority")
     page_str = request.args.get("page", "1")
     per_page_str = request.args.get("per_page", "20")
@@ -209,6 +223,9 @@ def list_tasks():
 
 @app.route("/tasks/stats", methods=["GET"])
 def get_task_stats():
+    error = _validate_query_params(frozenset())
+    if error:
+        return error
     db = get_db()
     rows = db.execute("SELECT completed, COUNT(*) as cnt FROM tasks GROUP BY completed").fetchall()
     completed = 0
@@ -236,6 +253,9 @@ def get_task_stats():
 
 @app.route("/tasks/export", methods=["GET"])
 def export_tasks():
+    error = _validate_query_params(frozenset())
+    if error:
+        return error
     rows = get_db().execute("SELECT * FROM tasks ORDER BY id ASC").fetchall()
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -261,6 +281,9 @@ def export_tasks():
 
 @app.route("/tasks/<int:task_id>", methods=["GET"])
 def get_task(task_id):
+    error = _validate_query_params(frozenset())
+    if error:
+        return error
     row = get_db().execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not row:
         return jsonify({"error": "Task not found"}), 404
