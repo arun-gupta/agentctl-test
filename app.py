@@ -1,6 +1,7 @@
+import base64
 import csv
 import io
-import math
+import json
 import sqlite3
 import threading
 import time
@@ -15,6 +16,8 @@ _rate_limit_lock = threading.Lock()
 
 RATE_LIMIT_DEFAULT_REQUESTS = 100
 RATE_LIMIT_DEFAULT_WINDOW = 60
+LIST_PAGE_SIZE_DEFAULT = 20
+LIST_PAGE_SIZE_MAX = 100
 
 
 @app.before_request
@@ -75,11 +78,13 @@ def _add_response_time_header(response):
         response.headers["X-RateLimit-Reset"] = str(g._rl_reset)
     return response
 app.config["DATABASE"] = "tasks.db"
+app.config["LIST_PAGE_SIZE_DEFAULT"] = LIST_PAGE_SIZE_DEFAULT
+app.config["LIST_PAGE_SIZE_MAX"] = LIST_PAGE_SIZE_MAX
 
 PRIORITY_LEVELS = {"low", "medium", "high"}
 SORT_FIELDS = {"created_at", "priority", "title"}
 SORT_ORDERS = {"asc", "desc"}
-ALLOWED_LIST_TASKS_PARAMS = frozenset({"priority", "sort", "order", "page", "per_page"})
+ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size"})
 PRIORITY_SORT_SQL = (
     "CASE priority "
     "WHEN 'low' THEN 1 "
@@ -170,8 +175,173 @@ def _tasks_order_by(sort, order):
     if sort == "priority":
         return f"{PRIORITY_SORT_SQL} {direction}, id ASC"
     if sort == "title":
-        return f"LOWER(title) {direction}, id ASC"
+        return f"LOWER(COALESCE(title, '')) {direction}, id ASC"
     return f"created_at {direction}, id {direction}"
+
+
+def _priority_rank(priority):
+    return {"low": 1, "medium": 2, "high": 3}[priority]
+
+
+def _cursor_error(message="cursor is invalid"):
+    return jsonify({"error": message}), 400
+
+
+def _collection_page_size_limit():
+    return int(app.config.get("LIST_PAGE_SIZE_MAX", LIST_PAGE_SIZE_MAX))
+
+
+def _collection_default_page_size():
+    default = int(app.config.get("LIST_PAGE_SIZE_DEFAULT", LIST_PAGE_SIZE_DEFAULT))
+    max_page_size = _collection_page_size_limit()
+    return min(default, max_page_size)
+
+
+def _parse_page_size():
+    page_size_str = request.args.get("page_size")
+    if page_size_str is None:
+        return None, _collection_default_page_size()
+
+    try:
+        page_size = int(page_size_str)
+    except (TypeError, ValueError):
+        return _cursor_error("page_size must be a positive integer"), None
+
+    if page_size < 1:
+        return _cursor_error("page_size must be a positive integer"), None
+
+    max_page_size = _collection_page_size_limit()
+    if page_size > max_page_size:
+        return _cursor_error(f"page_size must not exceed {max_page_size}"), None
+
+    return None, page_size
+
+
+def _cursor_payload(sort, order, priority, row):
+    if sort == "priority":
+        last_value = _priority_rank(row["priority"])
+    elif sort == "title":
+        last_value = (row["title"] or "").lower()
+    else:
+        last_value = row["created_at"]
+
+    return {
+        "sort": sort,
+        "order": order,
+        "priority": priority,
+        "last_value": last_value,
+        "last_id": row["id"],
+    }
+
+
+def _encode_cursor(payload):
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _decode_cursor(raw_cursor):
+    if raw_cursor is None:
+        return None, None
+
+    padding = "=" * (-len(raw_cursor) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode(f"{raw_cursor}{padding}")
+        payload = json.loads(decoded)
+    except (ValueError, json.JSONDecodeError):
+        return _cursor_error(), None
+
+    required_keys = {"sort", "order", "priority", "last_value", "last_id"}
+    if not isinstance(payload, dict) or set(payload) != required_keys:
+        return _cursor_error(), None
+
+    if payload["sort"] not in SORT_FIELDS or payload["order"] not in SORT_ORDERS:
+        return _cursor_error(), None
+
+    if payload["priority"] is not None and payload["priority"] not in PRIORITY_LEVELS:
+        return _cursor_error(), None
+
+    if not isinstance(payload["last_id"], int) or payload["last_id"] < 1:
+        return _cursor_error(), None
+
+    expected_type = int if payload["sort"] == "priority" else str
+    if not isinstance(payload["last_value"], expected_type):
+        return _cursor_error(), None
+
+    return None, payload
+
+
+def _cursor_clause(sort, order, cursor_payload):
+    if cursor_payload is None:
+        return "", []
+
+    if sort == "priority":
+        sort_sql = PRIORITY_SORT_SQL
+        id_comparator = ">"
+    elif sort == "title":
+        sort_sql = "LOWER(COALESCE(title, ''))"
+        id_comparator = ">"
+    else:
+        sort_sql = "created_at"
+        id_comparator = ">" if order == "asc" else "<"
+
+    value_comparator = ">" if order == "asc" else "<"
+    return (
+        f"({sort_sql} {value_comparator} ? OR ({sort_sql} = ? AND id {id_comparator} ?))",
+        [
+            cursor_payload["last_value"],
+            cursor_payload["last_value"],
+            cursor_payload["last_id"],
+        ],
+    )
+
+
+def _fetch_task_collection(priority, sort, order, page_size, raw_cursor):
+    cursor_error, cursor_payload = _decode_cursor(raw_cursor)
+    if cursor_error:
+        return cursor_error, None
+
+    if cursor_payload is not None:
+        if (
+            cursor_payload["sort"] != sort
+            or cursor_payload["order"] != order
+            or cursor_payload["priority"] != priority
+        ):
+            return _cursor_error("cursor does not match the current query"), None
+
+    db = get_db()
+    where_parts = []
+    where_params = []
+
+    if priority is not None:
+        where_parts.append("priority = ?")
+        where_params.append(priority)
+
+    count_where = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
+    total = db.execute(
+        f"SELECT COUNT(*) FROM tasks{count_where}",
+        where_params,
+    ).fetchone()[0]
+
+    cursor_clause, cursor_params = _cursor_clause(sort, order, cursor_payload)
+    if cursor_clause:
+        where_parts.append(cursor_clause)
+
+    query_where = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
+    rows = db.execute(
+        f"SELECT * FROM tasks{query_where} ORDER BY {_tasks_order_by(sort, order)} LIMIT ?",
+        [*where_params, *cursor_params, page_size + 1],
+    ).fetchall()
+
+    has_more = len(rows) > page_size
+    items = rows[:page_size]
+    next_cursor = _encode_cursor(_cursor_payload(sort, order, priority, items[-1])) if has_more else None
+
+    return None, {
+        "items": items,
+        "total": total,
+        "page_size": page_size,
+        "next_cursor": next_cursor,
+    }
 
 
 def _due_date_error():
@@ -204,28 +374,17 @@ def health_check():
 
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
-    error = _validate_query_params(ALLOWED_LIST_TASKS_PARAMS)
+    error = _validate_query_params(ALLOWED_TASK_COLLECTION_PARAMS)
     if error:
         return error
     priority = request.args.get("priority")
-    page_str = request.args.get("page", "1")
-    per_page_str = request.args.get("per_page", "20")
     sort = request.args.get("sort", "created_at")
     order = request.args.get("order", "asc")
+    raw_cursor = request.args.get("cursor")
 
-    try:
-        page = int(page_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": "page must be a positive integer"}), 400
-    try:
-        per_page = int(per_page_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": "per_page must be a positive integer"}), 400
-
-    if page < 1:
-        return jsonify({"error": "page must be a positive integer"}), 400
-    if per_page < 1:
-        return jsonify({"error": "per_page must be a positive integer"}), 400
+    error, page_size = _parse_page_size()
+    if error:
+        return error
 
     error = _validate_sort(sort)
     if error:
@@ -235,33 +394,20 @@ def list_tasks():
     if error:
         return error
 
-    order_by = _tasks_order_by(sort, order)
-    db = get_db()
     if priority is not None:
         error = _validate_priority(priority)
         if error:
             return error
-        total = db.execute(
-            "SELECT COUNT(*) FROM tasks WHERE priority = ?", (priority,)
-        ).fetchone()[0]
-        rows = db.execute(
-            f"SELECT * FROM tasks WHERE priority = ? ORDER BY {order_by} LIMIT ? OFFSET ?",
-            (priority, per_page, (page - 1) * per_page),
-        ).fetchall()
-    else:
-        total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
-        rows = db.execute(
-            f"SELECT * FROM tasks ORDER BY {order_by} LIMIT ? OFFSET ?",
-            (per_page, (page - 1) * per_page),
-        ).fetchall()
 
-    pages = math.ceil(total / per_page) if total > 0 else 0
+    error, page = _fetch_task_collection(priority, sort, order, page_size, raw_cursor)
+    if error:
+        return error
+
     return jsonify({
-        "items": [_row(r) for r in rows],
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "pages": pages,
+        "items": [_row(r) for r in page["items"]],
+        "total": page["total"],
+        "page_size": page["page_size"],
+        "next_cursor": page["next_cursor"],
     })
 
 
@@ -297,14 +443,39 @@ def get_task_stats():
 
 @app.route("/tasks/export", methods=["GET"])
 def export_tasks():
-    error = _validate_query_params(frozenset())
+    error = _validate_query_params(ALLOWED_TASK_COLLECTION_PARAMS)
     if error:
         return error
-    rows = get_db().execute("SELECT * FROM tasks ORDER BY id ASC").fetchall()
+    priority = request.args.get("priority")
+    sort = request.args.get("sort", "created_at")
+    order = request.args.get("order", "asc")
+    raw_cursor = request.args.get("cursor")
+
+    error, page_size = _parse_page_size()
+    if error:
+        return error
+
+    error = _validate_sort(sort)
+    if error:
+        return error
+
+    error = _validate_order(order)
+    if error:
+        return error
+
+    if priority is not None:
+        error = _validate_priority(priority)
+        if error:
+            return error
+
+    error, page = _fetch_task_collection(priority, sort, order, page_size, raw_cursor)
+    if error:
+        return error
+
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "notes", "created_at"])
-    for row in rows:
+    for row in page["items"]:
         writer.writerow([
             row["id"],
             row["title"],
@@ -319,7 +490,12 @@ def export_tasks():
         buf.getvalue(),
         status=200,
         mimetype="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="tasks.csv"'},
+        headers={
+            "Content-Disposition": 'attachment; filename="tasks.csv"',
+            "X-Page-Size": str(page["page_size"]),
+            "X-Total-Count": str(page["total"]),
+            "X-Next-Cursor": page["next_cursor"] or "",
+        },
     )
 
 
