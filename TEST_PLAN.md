@@ -37,7 +37,7 @@
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ✅ | [logs](#logs) |
 | `logs --no-follow` | ✅ | [logs](#logs) |
-| `attach` | ⬜ | [attach](#attach) |
+| `attach` | ✅ | [attach](#attach) |
 | `resume` (approve) | ✅ | [resume](#resume) |
 | `resume "feedback"` | ✅ | [resume](#resume) |
 | `resume --headless` | ⬜ | [resume](#resume) |
@@ -171,11 +171,11 @@ Stream `agent.log` for a running or finished headless agent.
 
 Attach to a running headless agent and exit automatically when it finishes.
 
-> **Prerequisite:** run `agentctl start 66 --headless` before testing this — attach requires the agent to still be running.
+> **Prerequisite:** run `agentctl start <issue> --headless` before testing this — attach requires the agent to still be running.
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl attach 66` | 🟢 [#66](https://github.com/arun-gupta/agentctl-test/issues/66) | ⬜ |
+| `agentctl attach 46` | 🔴 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ✅ |
 
 ---
 
