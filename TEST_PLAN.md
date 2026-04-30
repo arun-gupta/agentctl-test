@@ -145,10 +145,10 @@ Send a native desktop notification when a headless agent finishes. Also set repo
 
 Start from any directory without `cd`-ing into the repo first.
 
-| Variant | Status |
-|---------|--------|
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/44` | ⬜ |
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | ⬜ |
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/44` | 🟢 [#44](https://github.com/arun-gupta/agentctl-test/issues/44) | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | 🟢 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ⬜ |
 
 ---
 
@@ -170,11 +170,11 @@ Stream `agent.log` for a running or finished headless agent.
 
 Attach to a running headless agent and exit automatically when it finishes.
 
-> **Prerequisite:** run `agentctl start 35 --headless` before testing this — attach requires the agent to still be running.
+> **Prerequisite:** run `agentctl start 55 --headless` before testing this — attach requires the agent to still be running.
 
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl attach 35` | 🔴 [#35](https://github.com/arun-gupta/agentctl-test/issues/35) | ⬜ |
+| `agentctl attach 55` | 🟢 [#55](https://github.com/arun-gupta/agentctl-test/issues/55) | ⬜ |
 
 ---
 
@@ -210,14 +210,13 @@ Show all linked worktrees and their state. `list` is an alias for `status`.
 
 Remove a worktree after its PR is merged. Issue number is inferred from the current branch when run from inside a linked worktree.
 
+> **Prerequisite for `cleanup <issue>` and `cleanup` (from worktree):** run `agentctl start <issue>`, let the work complete and the PR merge, then run the cleanup variant.
+
 | Variant | Issue | Status |
 |---------|-------|--------|
-| `agentctl cleanup 1` | 🔴 [#1](https://github.com/arun-gupta/agentctl-test/issues/1) | ⬜ |
-| `agentctl cleanup 2` | 🔴 [#2](https://github.com/arun-gupta/agentctl-test/issues/2) | ⬜ |
-| `agentctl cleanup 3` | 🔴 [#3](https://github.com/arun-gupta/agentctl-test/issues/3) | ⬜ |
-| `agentctl cleanup 4` | 🔴 [#4](https://github.com/arun-gupta/agentctl-test/issues/4) | ⬜ |
-| `agentctl cleanup 5` | 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ⬜ |
-| `agentctl cleanup` (cd into worktree first) | any of the above | ⬜ |
+| `agentctl cleanup 56` | 🟢 [#56](https://github.com/arun-gupta/agentctl-test/issues/56) | ⬜ |
+| `agentctl cleanup 57` | 🟢 [#57](https://github.com/arun-gupta/agentctl-test/issues/57) | ⬜ |
+| `agentctl cleanup` (cd into worktree first) | 🟢 [#57](https://github.com/arun-gupta/agentctl-test/issues/57) | ⬜ |
 | `agentctl cleanup --all` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) + 🔴 [#28](https://github.com/arun-gupta/agentctl-test/issues/28) + 🟢 [#29](https://github.com/arun-gupta/agentctl-test/issues/29) | ✅ |
 
 ---
@@ -226,10 +225,12 @@ Remove a worktree after its PR is merged. Issue number is inferred from the curr
 
 Permanently delete a worktree and branches for abandoned or intentionally dropped work. Issue number is inferred from the current branch when run from inside a linked worktree.
 
+> **Prerequisite for `discard` (from worktree):** run `agentctl start 58` to create a worktree, then `cd` into it and run `agentctl discard`.
+
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl discard 6` | 🟢 [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | ✅ |
-| `agentctl discard` (cd into worktree first) | 🟢 [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or 🟢 [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | ⬜ |
+| `agentctl discard` (cd into worktree first) | 🟢 [#58](https://github.com/arun-gupta/agentctl-test/issues/58) | ⬜ |
 | `agentctl discard --stale` | 🟢 [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or 🟢 [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | ✅ |
 
 ---
