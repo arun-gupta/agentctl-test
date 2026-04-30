@@ -609,3 +609,54 @@ def test_toggle_preserves_notes(client):
     r = client.patch("/tasks/1/toggle")
     assert r.status_code == 200
     assert r.get_json()["notes"] == "still here"
+
+
+# --- X-Response-Time header tests ---
+
+import re
+
+_RT_PATTERN = re.compile(r"^\d+ms$")
+
+
+def test_response_time_header_on_success(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert _RT_PATTERN.match(r.headers.get("X-Response-Time", ""))
+
+
+def test_response_time_header_on_list(client):
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    assert _RT_PATTERN.match(r.headers.get("X-Response-Time", ""))
+
+
+def test_response_time_header_on_create(client):
+    r = client.post("/tasks", json={"title": "Timer test"})
+    assert r.status_code == 201
+    assert _RT_PATTERN.match(r.headers.get("X-Response-Time", ""))
+
+
+def test_response_time_header_on_error(client):
+    r = client.post("/tasks", json={})
+    assert r.status_code == 400
+    assert _RT_PATTERN.match(r.headers.get("X-Response-Time", ""))
+
+
+def test_response_time_header_on_not_found(client):
+    r = client.get("/tasks/999")
+    assert r.status_code == 404
+    assert _RT_PATTERN.match(r.headers.get("X-Response-Time", ""))
+
+
+def test_response_time_header_non_negative(client):
+    r = client.get("/health")
+    value = r.headers.get("X-Response-Time", "")
+    assert _RT_PATTERN.match(value)
+    assert int(value[:-2]) >= 0
+
+
+def test_response_time_header_independent_per_request(client):
+    r1 = client.get("/health")
+    r2 = client.get("/health")
+    assert _RT_PATTERN.match(r1.headers.get("X-Response-Time", ""))
+    assert _RT_PATTERN.match(r2.headers.get("X-Response-Time", ""))

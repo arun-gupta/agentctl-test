@@ -1,9 +1,23 @@
 import math
 import sqlite3
+import time
 from datetime import datetime
 from flask import Flask, request, jsonify, g
 
 app = Flask(__name__)
+
+
+@app.before_request
+def _record_start_time():
+    g._request_start = time.monotonic()
+
+
+@app.after_request
+def _add_response_time_header(response):
+    start = g.get("_request_start", time.monotonic())
+    elapsed_ms = round((time.monotonic() - start) * 1000)
+    response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
+    return response
 app.config["DATABASE"] = "tasks.db"
 
 PRIORITY_LEVELS = {"low", "medium", "high"}
