@@ -33,7 +33,7 @@
 | `start --sdd=speckit` | ❌ | [start --sdd=speckit](#start---sddspeckit) |
 | `start --notify` | ✅ | [start --notify](#start---notify) |
 | `start <url>` | ✅ | [start \<url\>](#start-url--full-github-url) |
-| `start <url> --agent copilot` | ⬜ | [start \<url\>](#start-url--full-github-url) |
+| `start <url> --agent copilot` | ✅ | [start \<url\>](#start-url--full-github-url) |
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ✅ | [logs](#logs) |
 | `logs --no-follow` | ✅ | [logs](#logs) |
@@ -45,7 +45,7 @@
 | `resume --quiet` | ⬜ | [resume](#resume) |
 | `status` | ✅ | [status](#status) |
 | `status --verbose` | ✅ | [status](#status) |
-| `list` (alias for status) | ⬜ | [status](#status) |
+| `list` (alias for status) | ✅ | [status](#status) |
 | `cleanup <issue>` | ✅ | [cleanup](#cleanup) |
 | `cleanup` (from inside worktree) | ⬜ | [cleanup](#cleanup) |
 | `cleanup --all` | ✅ | [cleanup](#cleanup) |
@@ -148,7 +148,7 @@ Start from any directory without `cd`-ing into the repo first.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/65` | 🔴 [#65](https://github.com/arun-gupta/agentctl-test/issues/65) | ✅ |
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | 🟢 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | 🟢 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ✅ |
 
 ---
 
@@ -202,7 +202,7 @@ Show all linked worktrees and their state. `list` is an alias for `status`.
 |---------|--------|
 | `agentctl status` | ✅ |
 | `agentctl status --verbose` | ✅ |
-| `agentctl list` | ⬜ |
+| `agentctl list` | ✅ |
 
 ---
 
