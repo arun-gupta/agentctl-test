@@ -10,7 +10,7 @@ A minimal REST API for managing tasks (in-memory, single process). Intentional b
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/tasks` | List all tasks, optionally filtered by `priority=low|medium|high` and sorted with `sort=created_at|priority|title` plus `order=asc|desc` |
+| GET | `/tasks` | List tasks with optional `priority=low|medium|high`, `sort=created_at|priority|title`, `order=asc|desc`, cursor pagination via `cursor`, and configurable `page_size` |
 | POST | `/tasks` | Create a task (`priority` defaults to `medium`, optional ISO 8601 `due_date`) |
 | GET | `/tasks/:id` | Get a task |
 | PUT | `/tasks/:id` | Update a task |
@@ -37,6 +37,13 @@ The API returns permissive CORS headers for browser-based clients:
 | `Access-Control-Allow-Headers` | `Content-Type` |
 
 This allows cross-origin browser requests to the existing JSON and CSV endpoints, including preflighted requests that send `Content-Type: application/json`.
+
+### Collection pagination
+
+Task collection endpoints use cursor-based pagination.
+
+- `GET /tasks` accepts `cursor` and `page_size` and returns `items`, `total`, `page_size`, and `next_cursor`.
+- `GET /tasks/export` accepts the same list query parameters and returns pagination metadata in `X-Page-Size`, `X-Total-Count`, and `X-Next-Cursor` response headers.
 
 ### Running locally
 
@@ -149,7 +156,7 @@ agentctl start 7 --headless --quiet
 agentctl status --verbose
 ```
 
-Issue #7 — **Add pagination to `GET /tasks`**: Accept `?page=1&per_page=20` query parameters and return a paginated response with `total`, `page`, `per_page`, and `items` fields. `--quiet` suppresses output for CI/batch contexts.
+Issue #7 — **Add pagination to `GET /tasks`**: Accept `?cursor=...&page_size=20` query parameters and return a paginated response with `total`, `page_size`, `next_cursor`, and `items` fields. `--quiet` suppresses output for CI/batch contexts.
 
 ---
 
