@@ -26,9 +26,8 @@ def test_list_empty(client):
     data = r.get_json()
     assert data["items"] == []
     assert data["total"] == 0
-    assert data["page"] == 1
     assert data["per_page"] == 20
-    assert data["pages"] == 0
+    assert data["next_cursor"] is None
 
 
 def test_create_task(client):
@@ -390,49 +389,49 @@ def test_pagination_defaults(client):
     assert r.status_code == 200
     data = r.get_json()
     assert data["total"] == 5
-    assert data["page"] == 1
     assert data["per_page"] == 20
-    assert data["pages"] == 1
     assert len(data["items"]) == 5
+    assert data["next_cursor"] is None
 
 
 def test_pagination_limits_items(client):
     for i in range(5):
         client.post("/tasks", json={"title": f"Task {i}"})
-    r = client.get("/tasks?page=1&per_page=2")
+    r = client.get("/tasks?per_page=2")
     assert r.status_code == 200
     data = r.get_json()
     assert data["total"] == 5
-    assert data["page"] == 1
     assert data["per_page"] == 2
-    assert data["pages"] == 3
     assert len(data["items"]) == 2
+    assert data["next_cursor"]
 
 
 def test_pagination_second_page(client):
     for i in range(5):
         client.post("/tasks", json={"title": f"Task {i}"})
-    r = client.get("/tasks?page=2&per_page=2")
+    first_page = client.get("/tasks?per_page=2").get_json()
+    r = client.get("/tasks", query_string={"per_page": 2, "cursor": first_page["next_cursor"]})
     assert r.status_code == 200
     data = r.get_json()
-    assert data["page"] == 2
-    assert len(data["items"]) == 2
+    assert [item["title"] for item in data["items"]] == ["Task 2", "Task 3"]
+    assert data["next_cursor"]
 
 
-def test_pagination_out_of_range_returns_empty(client):
-    client.post("/tasks", json={"title": "Only task"})
-    r = client.get("/tasks?page=100&per_page=20")
+def test_pagination_last_page_has_no_next_cursor(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    first_page = client.get("/tasks?per_page=2").get_json()
+    r = client.get("/tasks", query_string={"per_page": 2, "cursor": first_page["next_cursor"]})
     assert r.status_code == 200
     data = r.get_json()
-    assert data["items"] == []
-    assert data["total"] == 1
-    assert data["page"] == 100
+    assert [item["title"] for item in data["items"]] == ["Task 2"]
+    assert data["next_cursor"] is None
 
 
-def test_pagination_invalid_page_returns_400(client):
-    r = client.get("/tasks?page=abc")
+def test_pagination_invalid_cursor_returns_400(client):
+    r = client.get("/tasks?cursor=abc")
     assert r.status_code == 400
-    assert "page" in r.get_json()["error"]
+    assert "cursor" in r.get_json()["error"]
 
 
 def test_pagination_invalid_per_page_returns_400(client):
@@ -441,10 +440,13 @@ def test_pagination_invalid_per_page_returns_400(client):
     assert "per_page" in r.get_json()["error"]
 
 
-def test_pagination_negative_page_returns_400(client):
-    r = client.get("/tasks?page=-1")
+def test_pagination_cursor_rejects_sort_mismatch(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    first_page = client.get("/tasks?per_page=1").get_json()
+    r = client.get("/tasks", query_string={"per_page": 1, "sort": "title", "cursor": first_page["next_cursor"]})
     assert r.status_code == 400
-    assert "page" in r.get_json()["error"]
+    assert "cursor" in r.get_json()["error"]
 
 
 def test_pagination_zero_per_page_returns_400(client):
@@ -462,9 +464,9 @@ def test_pagination_with_priority_filter(client):
     assert r.status_code == 200
     data = r.get_json()
     assert data["total"] == 3
-    assert data["pages"] == 2
     assert len(data["items"]) == 2
     assert all(item["priority"] == "high" for item in data["items"])
+    assert data["next_cursor"]
 
 
 # --- Export tests ---
@@ -644,7 +646,7 @@ def test_list_tasks_paginated_includes_notes(client):
     client.post("/tasks", json={"title": "A", "notes": "note A"})
     client.post("/tasks", json={"title": "B", "notes": "note B"})
     client.post("/tasks", json={"title": "C"})
-    r = client.get("/tasks?page=1&per_page=2")
+    r = client.get("/tasks?per_page=2")
     assert r.status_code == 200
     items = r.get_json()["items"]
     assert len(items) == 2
@@ -875,8 +877,8 @@ def test_request_id_on_400_invalid_sort(client):
     _assert_request_id(r)
 
 
-def test_request_id_on_400_negative_page(client):
-    r = client.get("/tasks?page=-1")
+def test_request_id_on_400_invalid_cursor(client):
+    r = client.get("/tasks?cursor=abc")
     assert r.status_code == 400
     _assert_request_id(r)
 
@@ -980,7 +982,19 @@ def test_list_tasks_rejects_unknown_param_alongside_valid_params(client):
 
 
 def test_list_tasks_all_known_params_accepted(client):
-    r = client.get("/tasks?priority=high&sort=title&order=asc&page=1&per_page=10")
+    client.post("/tasks", json={"title": "A", "priority": "high"})
+    client.post("/tasks", json={"title": "B", "priority": "high"})
+    first_page = client.get("/tasks?priority=high&sort=title&order=asc&per_page=1").get_json()
+    r = client.get(
+        "/tasks",
+        query_string={
+            "priority": "high",
+            "sort": "title",
+            "order": "asc",
+            "cursor": first_page["next_cursor"],
+            "per_page": 10,
+        },
+    )
     assert r.status_code == 200
 
 

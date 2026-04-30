@@ -1,6 +1,7 @@
+import base64
 import csv
 import io
-import math
+import json
 import sqlite3
 import time
 import uuid
@@ -35,7 +36,8 @@ app.config["DATABASE"] = "tasks.db"
 PRIORITY_LEVELS = {"low", "medium", "high"}
 SORT_FIELDS = {"created_at", "priority", "title"}
 SORT_ORDERS = {"asc", "desc"}
-ALLOWED_LIST_TASKS_PARAMS = frozenset({"priority", "sort", "order", "page", "per_page"})
+ALLOWED_LIST_TASKS_PARAMS = frozenset({"priority", "sort", "order", "cursor", "per_page"})
+DEFAULT_PER_PAGE = 20
 PRIORITY_SORT_SQL = (
     "CASE priority "
     "WHEN 'low' THEN 1 "
@@ -130,6 +132,55 @@ def _tasks_order_by(sort, order):
     return f"created_at {direction}, id {direction}"
 
 
+def _parse_positive_int(value, name):
+    try:
+        parsed = int(value)
+    except (ValueError, TypeError):
+        return (jsonify({"error": f"{name} must be a positive integer"}), 400), None
+    if parsed < 1:
+        return (jsonify({"error": f"{name} must be a positive integer"}), 400), None
+    return None, parsed
+
+
+def _cursor_error():
+    return jsonify({"error": "cursor must be a valid pagination cursor"}), 400
+
+
+def _encode_cursor(offset, priority, sort, order):
+    payload = {
+        "offset": offset,
+        "priority": priority,
+        "sort": sort,
+        "order": order,
+    }
+    encoded = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
+    return encoded.rstrip("=")
+
+
+def _decode_cursor(cursor, priority, sort, order):
+    if not isinstance(cursor, str) or not cursor:
+        return _cursor_error(), None
+
+    padded = cursor + "=" * (-len(cursor) % 4)
+    try:
+        raw_payload = base64.urlsafe_b64decode(padded.encode("ascii"))
+        payload = json.loads(raw_payload.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return _cursor_error(), None
+
+    if not isinstance(payload, dict):
+        return _cursor_error(), None
+    if payload.get("priority") != priority:
+        return _cursor_error(), None
+    if payload.get("sort") != sort or payload.get("order") != order:
+        return _cursor_error(), None
+
+    offset = payload.get("offset")
+    if not isinstance(offset, int) or offset < 0:
+        return _cursor_error(), None
+    return None, offset
+
+
 def _due_date_error():
     return jsonify({"error": "due_date must be an ISO 8601 string"}), 400
 
@@ -164,24 +215,14 @@ def list_tasks():
     if error:
         return error
     priority = request.args.get("priority")
-    page_str = request.args.get("page", "1")
-    per_page_str = request.args.get("per_page", "20")
+    cursor = request.args.get("cursor")
+    per_page_str = request.args.get("per_page", str(DEFAULT_PER_PAGE))
     sort = request.args.get("sort", "created_at")
     order = request.args.get("order", "asc")
 
-    try:
-        page = int(page_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": "page must be a positive integer"}), 400
-    try:
-        per_page = int(per_page_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": "per_page must be a positive integer"}), 400
-
-    if page < 1:
-        return jsonify({"error": "page must be a positive integer"}), 400
-    if per_page < 1:
-        return jsonify({"error": "per_page must be a positive integer"}), 400
+    error, per_page = _parse_positive_int(per_page_str, "per_page")
+    if error:
+        return error
 
     error = _validate_sort(sort)
     if error:
@@ -191,33 +232,44 @@ def list_tasks():
     if error:
         return error
 
-    order_by = _tasks_order_by(sort, order)
-    db = get_db()
     if priority is not None:
         error = _validate_priority(priority)
         if error:
             return error
+
+    offset = 0
+    if cursor is not None:
+        error, offset = _decode_cursor(cursor, priority, sort, order)
+        if error:
+            return error
+
+    order_by = _tasks_order_by(sort, order)
+    db = get_db()
+    if priority is not None:
         total = db.execute(
             "SELECT COUNT(*) FROM tasks WHERE priority = ?", (priority,)
         ).fetchone()[0]
         rows = db.execute(
             f"SELECT * FROM tasks WHERE priority = ? ORDER BY {order_by} LIMIT ? OFFSET ?",
-            (priority, per_page, (page - 1) * per_page),
+            (priority, per_page, offset),
         ).fetchall()
     else:
         total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
         rows = db.execute(
             f"SELECT * FROM tasks ORDER BY {order_by} LIMIT ? OFFSET ?",
-            (per_page, (page - 1) * per_page),
+            (per_page, offset),
         ).fetchall()
 
-    pages = math.ceil(total / per_page) if total > 0 else 0
+    next_offset = offset + len(rows)
+    next_cursor = None
+    if next_offset < total:
+        next_cursor = _encode_cursor(next_offset, priority, sort, order)
+
     return jsonify({
         "items": [_row(r) for r in rows],
         "total": total,
-        "page": page,
         "per_page": per_page,
-        "pages": pages,
+        "next_cursor": next_cursor,
     })
 
 
