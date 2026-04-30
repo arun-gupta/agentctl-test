@@ -17,6 +17,15 @@ A minimal REST API for managing tasks (in-memory, single process). Intentional b
 | DELETE | `/tasks/:id` | Delete a task |
 | GET | `/tasks/:id/toggle` | Toggle completion (buggy — see issue #4) |
 
+### Response headers
+
+Every response includes these headers regardless of status code:
+
+| Header | Example value | Description |
+|--------|---------------|-------------|
+| `X-Request-ID` | `f47ac10b-58cc-4372-a567-0e02b2c3d479` | UUID v4 unique to this request. Use it to correlate client logs with server logs. |
+| `X-Response-Time` | `12ms` | Server processing time in milliseconds, measured from the start of the request to the start of response serialisation. |
+
 ### Running locally
 
 ```bash

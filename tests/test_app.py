@@ -753,3 +753,148 @@ def test_response_time_header_independent_per_request(client):
     r2 = client.get("/health")
     assert _RT_PATTERN.match(r1.headers.get("X-Response-Time", ""))
     assert _RT_PATTERN.match(r2.headers.get("X-Response-Time", ""))
+
+
+# --- X-Request-ID header tests ---
+
+import uuid as _uuid_mod
+
+_UUID4_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+)
+
+
+def _assert_request_id(response):
+    value = response.headers.get("X-Request-ID", "")
+    assert _UUID4_PATTERN.match(value), f"X-Request-ID {value!r} is not a valid UUID v4"
+    _uuid_mod.UUID(value, version=4)
+    assert value
+
+
+# Format validation
+
+def test_request_id_is_valid_uuid4(client):
+    r = client.get("/health")
+    _assert_request_id(r)
+
+
+def test_request_id_parseable_by_uuid_module(client):
+    r = client.get("/health")
+    value = r.headers.get("X-Request-ID", "")
+    parsed = _uuid_mod.UUID(value, version=4)
+    assert parsed.version == 4
+
+
+def test_request_id_is_non_empty(client):
+    r = client.get("/health")
+    assert r.headers.get("X-Request-ID", "") != ""
+
+
+# Coverage across all endpoints and HTTP methods
+
+def test_request_id_on_get_health(client):
+    _assert_request_id(client.get("/health"))
+
+
+def test_request_id_on_get_tasks(client):
+    _assert_request_id(client.get("/tasks"))
+
+
+def test_request_id_on_post_tasks(client):
+    _assert_request_id(client.post("/tasks", json={"title": "ID test"}))
+
+
+def test_request_id_on_get_task(client):
+    client.post("/tasks", json={"title": "ID test"})
+    _assert_request_id(client.get("/tasks/1"))
+
+
+def test_request_id_on_put_task(client):
+    client.post("/tasks", json={"title": "ID test"})
+    _assert_request_id(client.put("/tasks/1", json={"title": "Updated"}))
+
+
+def test_request_id_on_delete_task(client):
+    client.post("/tasks", json={"title": "ID test"})
+    _assert_request_id(client.delete("/tasks/1"))
+
+
+def test_request_id_on_patch_toggle(client):
+    client.post("/tasks", json={"title": "ID test"})
+    _assert_request_id(client.patch("/tasks/1/toggle"))
+
+
+def test_request_id_on_get_stats(client):
+    _assert_request_id(client.get("/tasks/stats"))
+
+
+def test_request_id_on_get_export(client):
+    _assert_request_id(client.get("/tasks/export"))
+
+
+def test_request_id_on_delete_completed(client):
+    _assert_request_id(client.delete("/tasks/completed"))
+
+
+# Error and edge-case responses
+
+def test_request_id_on_400_missing_title(client):
+    r = client.post("/tasks", json={})
+    assert r.status_code == 400
+    _assert_request_id(r)
+
+
+def test_request_id_on_400_invalid_priority(client):
+    r = client.post("/tasks", json={"title": "X", "priority": "urgent"})
+    assert r.status_code == 400
+    _assert_request_id(r)
+
+
+def test_request_id_on_404_task_not_found(client):
+    r = client.get("/tasks/9999")
+    assert r.status_code == 404
+    _assert_request_id(r)
+
+
+def test_request_id_on_405_wrong_method(client):
+    client.post("/tasks", json={"title": "ID test"})
+    r = client.get("/tasks/1/toggle")
+    assert r.status_code == 405
+    _assert_request_id(r)
+
+
+def test_request_id_on_400_invalid_priority_filter(client):
+    r = client.get("/tasks?priority=invalid")
+    assert r.status_code == 400
+    _assert_request_id(r)
+
+
+def test_request_id_on_400_invalid_sort(client):
+    r = client.get("/tasks?sort=invalid")
+    assert r.status_code == 400
+    _assert_request_id(r)
+
+
+def test_request_id_on_400_negative_page(client):
+    r = client.get("/tasks?page=-1")
+    assert r.status_code == 400
+    _assert_request_id(r)
+
+
+# Uniqueness and independence
+
+def test_request_id_unique_across_two_requests(client):
+    id1 = client.get("/health").headers.get("X-Request-ID")
+    id2 = client.get("/health").headers.get("X-Request-ID")
+    assert id1 != id2
+
+
+def test_request_id_unique_across_ten_requests(client):
+    ids = [client.get("/health").headers.get("X-Request-ID") for _ in range(10)]
+    assert len(set(ids)) == 10
+
+
+def test_request_id_independent_between_two_requests(client):
+    r1 = client.get("/tasks")
+    r2 = client.post("/tasks", json={"title": "Another"})
+    assert r1.headers.get("X-Request-ID") != r2.headers.get("X-Request-ID")

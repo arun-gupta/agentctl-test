@@ -3,10 +3,16 @@ import io
 import math
 import sqlite3
 import time
+import uuid
 from datetime import datetime
 from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
+
+
+@app.before_request
+def _record_request_id():
+    g._request_id = str(uuid.uuid4())
 
 
 @app.before_request
@@ -19,6 +25,7 @@ def _add_response_time_header(response):
     start = g.get("_request_start", time.monotonic())
     elapsed_ms = round((time.monotonic() - start) * 1000)
     response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
+    response.headers["X-Request-ID"] = g.get("_request_id", "")
     return response
 app.config["DATABASE"] = "tasks.db"
 
