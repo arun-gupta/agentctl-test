@@ -2,12 +2,19 @@ import csv
 import io
 import math
 import sqlite3
+import threading
 import time
 import uuid
 from datetime import datetime
 from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
+
+_rate_limit_store: dict[str, list[float]] = {}
+_rate_limit_lock = threading.Lock()
+
+RATE_LIMIT_DEFAULT_REQUESTS = 100
+RATE_LIMIT_DEFAULT_WINDOW = 60
 
 
 @app.before_request
@@ -20,6 +27,39 @@ def _record_start_time():
     g._request_start = time.monotonic()
 
 
+@app.before_request
+def _enforce_rate_limit():
+    if not app.config.get("RATE_LIMIT_ENABLED", True):
+        return
+
+    limit = app.config.get("RATE_LIMIT_REQUESTS", RATE_LIMIT_DEFAULT_REQUESTS)
+    window = app.config.get("RATE_LIMIT_WINDOW", RATE_LIMIT_DEFAULT_WINDOW)
+    client_key = request.remote_addr or "unknown"
+    now = time.time()
+    window_start = now - window
+
+    with _rate_limit_lock:
+        timestamps = _rate_limit_store.get(client_key, [])
+        timestamps = [t for t in timestamps if t > window_start]
+
+        if len(timestamps) >= limit:
+            reset_at = int(timestamps[0] + window)
+            retry_after = max(1, reset_at - int(now))
+            g._rl_limit = limit
+            g._rl_remaining = 0
+            g._rl_reset = reset_at
+            resp = jsonify({"error": "rate limit exceeded"})
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(retry_after)
+            return resp
+
+        timestamps.append(now)
+        _rate_limit_store[client_key] = timestamps
+        g._rl_limit = limit
+        g._rl_remaining = limit - len(timestamps)
+        g._rl_reset = int(timestamps[0] + window)
+
+
 @app.after_request
 def _add_response_time_header(response):
     start = g.get("_request_start", time.monotonic())
@@ -29,6 +69,10 @@ def _add_response_time_header(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    if hasattr(g, "_rl_limit"):
+        response.headers["X-RateLimit-Limit"] = str(g._rl_limit)
+        response.headers["X-RateLimit-Remaining"] = str(g._rl_remaining)
+        response.headers["X-RateLimit-Reset"] = str(g._rl_reset)
     return response
 app.config["DATABASE"] = "tasks.db"
 

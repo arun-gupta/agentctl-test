@@ -1,10 +1,12 @@
 import pytest
-from app import app, get_db
+from app import app, get_db, _rate_limit_store
 
 
 @pytest.fixture(autouse=True)
 def setup_db(tmp_path):
     app.config["DATABASE"] = str(tmp_path / "test.db")
+    app.config["RATE_LIMIT_ENABLED"] = False
+    _rate_limit_store.clear()
 
 
 @pytest.fixture
@@ -1027,3 +1029,106 @@ def test_unknown_param_error_includes_request_id(client):
     r = client.get("/tasks?bad=param")
     assert r.status_code == 400
     _assert_request_id(r)
+
+
+# --- Rate limiting tests ---
+
+@pytest.fixture
+def rate_limited_client(tmp_path):
+    app.config["DATABASE"] = str(tmp_path / "rl_test.db")
+    app.config["TESTING"] = True
+    app.config["RATE_LIMIT_ENABLED"] = True
+    app.config["RATE_LIMIT_REQUESTS"] = 3
+    app.config["RATE_LIMIT_WINDOW"] = 60
+    _rate_limit_store.clear()
+    with app.test_client() as c:
+        yield c
+    app.config["RATE_LIMIT_ENABLED"] = False
+    _rate_limit_store.clear()
+
+
+def test_rate_limit_headers_present_on_normal_response(rate_limited_client):
+    r = rate_limited_client.get("/health")
+    assert r.status_code == 200
+    assert r.headers.get("X-RateLimit-Limit") == "3"
+    assert r.headers.get("X-RateLimit-Remaining") == "2"
+    assert r.headers.get("X-RateLimit-Reset") is not None
+
+
+def test_rate_limit_remaining_decrements(rate_limited_client):
+    r1 = rate_limited_client.get("/health")
+    r2 = rate_limited_client.get("/health")
+    assert int(r1.headers["X-RateLimit-Remaining"]) > int(r2.headers["X-RateLimit-Remaining"])
+
+
+def test_rate_limit_exceeded_returns_429(rate_limited_client):
+    for _ in range(3):
+        rate_limited_client.get("/health")
+    r = rate_limited_client.get("/health")
+    assert r.status_code == 429
+    assert r.get_json()["error"] == "rate limit exceeded"
+
+
+def test_rate_limit_429_has_retry_after_header(rate_limited_client):
+    for _ in range(3):
+        rate_limited_client.get("/health")
+    r = rate_limited_client.get("/health")
+    assert r.status_code == 429
+    retry_after = r.headers.get("Retry-After")
+    assert retry_after is not None
+    assert int(retry_after) >= 1
+
+
+def test_rate_limit_429_has_rate_limit_headers(rate_limited_client):
+    for _ in range(3):
+        rate_limited_client.get("/health")
+    r = rate_limited_client.get("/health")
+    assert r.status_code == 429
+    assert r.headers.get("X-RateLimit-Limit") == "3"
+    assert r.headers.get("X-RateLimit-Remaining") == "0"
+    assert r.headers.get("X-RateLimit-Reset") is not None
+
+
+def test_rate_limit_429_has_cors_headers(rate_limited_client):
+    for _ in range(3):
+        rate_limited_client.get("/health")
+    r = rate_limited_client.get("/health")
+    assert r.status_code == 429
+    assert r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_rate_limit_429_has_request_id(rate_limited_client):
+    for _ in range(3):
+        rate_limited_client.get("/health")
+    r = rate_limited_client.get("/health")
+    assert r.status_code == 429
+    _assert_request_id(r)
+
+
+def test_rate_limit_disabled_allows_unlimited_requests(client):
+    for _ in range(200):
+        r = client.get("/health")
+        assert r.status_code == 200
+
+
+def test_rate_limit_no_headers_when_disabled(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert "X-RateLimit-Limit" not in r.headers
+
+
+def test_rate_limit_applies_across_endpoints(rate_limited_client):
+    rate_limited_client.get("/health")
+    rate_limited_client.get("/tasks")
+    rate_limited_client.get("/health")
+    r = rate_limited_client.get("/tasks")
+    assert r.status_code == 429
+
+
+def test_rate_limit_reset_time_is_unix_timestamp(rate_limited_client):
+    import time
+    r = rate_limited_client.get("/health")
+    reset = int(r.headers["X-RateLimit-Reset"])
+    now = int(time.time())
+    assert reset >= now
+    assert reset <= now + 61
