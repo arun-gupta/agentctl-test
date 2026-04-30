@@ -10,7 +10,7 @@ A minimal REST API for managing tasks (in-memory, single process). Intentional b
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/tasks` | List all tasks, optionally filtered by `priority=low|medium|high` and sorted with `sort=created_at|priority|title` plus `order=asc|desc` |
+| GET | `/tasks` | List tasks with cursor pagination via `cursor` and `per_page`, optionally filtered by `priority=low|medium|high` and sorted with `sort=created_at|priority|title` plus `order=asc|desc` |
 | POST | `/tasks` | Create a task (`priority` defaults to `medium`, optional ISO 8601 `due_date`) |
 | GET | `/tasks/:id` | Get a task |
 | PUT | `/tasks/:id` | Update a task |
@@ -149,7 +149,7 @@ agentctl start 7 --headless --quiet
 agentctl status --verbose
 ```
 
-Issue #7 — **Add pagination to `GET /tasks`**: Accept `?page=1&per_page=20` query parameters and return a paginated response with `total`, `page`, `per_page`, and `items` fields. `--quiet` suppresses output for CI/batch contexts.
+Issue #7 — **Add pagination to `GET /tasks`**: Accept cursor-based pagination query parameters such as `?per_page=20&cursor=...` and return a paginated response with `total`, `per_page`, `next_cursor`, and `items` fields. `--quiet` suppresses output for CI/batch contexts.
 
 ---
 
