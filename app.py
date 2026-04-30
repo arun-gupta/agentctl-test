@@ -26,6 +26,9 @@ def _add_response_time_header(response):
     elapsed_ms = round((time.monotonic() - start) * 1000)
     response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
     response.headers["X-Request-ID"] = g.get("_request_id", "")
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return response
 app.config["DATABASE"] = "tasks.db"
 

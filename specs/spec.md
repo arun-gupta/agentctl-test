@@ -1,92 +1,71 @@
-# Spec: Add request ID header to API responses
+# Spec: Add CORS support to API
 
 ## Problem
 
-Issue #51 asks that every API response include an `X-Request-ID` header whose value is a unique UUID (version 4) generated per request. This is useful for distributed tracing and debugging — callers can log or forward the ID to correlate server-side logs with a specific request.
-
-The README currently documents the endpoint table but has no mention of response headers. This PR is also an opportunity to document both `X-Request-ID` and the already-shipped `X-Response-Time` header in one place.
+Issue #47 asks the API to return appropriate CORS headers so browser-based clients can call it successfully. Right now the Flask app returns JSON and CSV responses without any `Access-Control-*` headers, which means browsers will block cross-origin calls and preflighted requests such as `POST`, `PUT`, `PATCH`, and `DELETE` with `application/json`.
 
 ## Approach
 
-Mirror the `X-Response-Time` implementation already in `app.py`:
+Add CORS behavior centrally at the Flask app level rather than in each route:
 
-1. In a `before_request` handler, generate a UUID4 string and store it in `flask.g` (e.g. `g._request_id`).
-2. In the existing `_add_response_time_header` `after_request` handler, also attach the `X-Request-ID` header from `g._request_id`.
+1. Extend the existing global `after_request` hook in `app.py` to attach a small, consistent CORS header set to every response, including error responses and Flask-generated `OPTIONS` responses.
+2. Use permissive defaults suitable for this demo API:
+   - `Access-Control-Allow-Origin: *`
+   - `Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS`
+   - `Access-Control-Allow-Headers: Content-Type`
+3. Rely on Flask's built-in `OPTIONS` handling for routes, verifying via tests that preflight requests receive the expected headers and advertise the supported methods.
+4. Document the new browser access behavior in `README.md`.
 
-Using `before_request` / `after_request` hooks keeps all route handlers unchanged.
+This keeps the change low-risk and avoids adding per-endpoint branching or a new dependency such as `flask-cors`.
 
 ## Changes
 
 ### `app.py`
 
-- Add `import uuid` at the top.
-- Add a new `before_request` hook that generates and stores the request ID:
+- Update the existing `@app.after_request` hook so it also sets CORS headers on every response.
+- Keep the implementation centralized instead of modifying individual route handlers.
+- Expected header behavior:
 
 ```python
-@app.before_request
-def _record_request_id():
-    g._request_id = str(uuid.uuid4())
+response.headers["Access-Control-Allow-Origin"] = "*"
+response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+response.headers["Access-Control-Allow-Headers"] = "Content-Type"
 ```
 
-- In `_add_response_time_header` (the existing `after_request` hook), add one line to attach the header:
-
-```python
-response.headers["X-Request-ID"] = g.get("_request_id", "")
-```
+- No new routes are expected; preflight support should come from Flask's automatic `OPTIONS` handling on existing endpoints such as:
+  - `OPTIONS /tasks`
+  - `OPTIONS /tasks/<id>`
+  - `OPTIONS /tasks/<id>/toggle`
+  - `OPTIONS /tasks/completed`
 
 ### `README.md`
 
-Add a **Response headers** subsection under "The app" documenting all standard headers present on every response:
-
-| Header | Example value | Description |
-|--------|---------------|-------------|
-| `X-Request-ID` | `f47ac10b-58cc-4372-a567-0e02b2c3d479` | UUID v4 unique to this request. Use it to correlate client logs with server logs. |
-| `X-Response-Time` | `12ms` | Server processing time in milliseconds, measured from the start of the request to the start of response serialisation. |
+- Add a short note documenting that the API supports cross-origin browser access with permissive CORS headers.
+- If helpful, mention the allowed methods and that JSON requests may send `Content-Type`.
 
 ## Test Cases
 
-**Format validation**
-- Header value matches the UUID v4 regex: `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}` (lowercase hex, correct version bit `4`, correct variant bits `8`, `9`, `a`, or `b`).
-- Header value is parseable by `uuid.UUID(..., version=4)` without raising an exception.
-- Header value is a non-empty string (sanity guard against the fallback path returning `""`).
+- `GET /health` returns `Access-Control-Allow-Origin: *` on a normal success response.
+- `GET /tasks` returns the CORS headers on a JSON list response.
+- `POST /tasks` returns the CORS headers on a successful JSON create response.
+- `PATCH /tasks/<id>/toggle` returns the CORS headers on a mutating success response.
+- `GET /tasks/export` returns the CORS headers on the CSV export response.
+- Validation failures such as `POST /tasks` with a missing title still include the CORS headers.
+- Not-found responses such as `GET /tasks/999` still include the CORS headers.
+- `OPTIONS /tasks` succeeds and includes the CORS headers needed for browser preflight.
+- `OPTIONS /tasks/<id>/toggle` succeeds and advertises that `PATCH` is allowed for that endpoint.
+- The advertised allowed methods header includes the API’s supported browser-relevant verbs: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`.
+- The allowed headers response includes `Content-Type` so browser JSON requests can pass preflight.
 
-**Coverage across all endpoints and HTTP methods**
-- `GET /health` (200) carries the header.
-- `GET /tasks` (200) carries the header.
-- `POST /tasks` with valid body (201) carries the header.
-- `GET /tasks/<id>` for an existing task (200) carries the header.
-- `PUT /tasks/<id>` update (200) carries the header.
-- `DELETE /tasks/<id>` (200) carries the header.
-- `PATCH /tasks/<id>/toggle` (200) carries the header.
-- `GET /tasks/stats` (200) carries the header.
-- `GET /tasks/export` CSV response (200) carries the header.
-- `DELETE /tasks/completed` (200) carries the header.
-
-**Error and edge-case responses**
-- `POST /tasks` with missing title (400) carries the header.
-- `POST /tasks` with invalid priority (400) carries the header.
-- `GET /tasks/<id>` for a non-existent task (404) carries the header.
-- `GET /tasks/<id>/toggle` using wrong HTTP method `GET` (405 Method Not Allowed) carries the header.
-- `GET /tasks?priority=invalid` (400) carries the header.
-- `GET /tasks?sort=invalid` (400) carries the header.
-- `GET /tasks?page=-1` (400) carries the header.
-
-**Uniqueness and independence**
-- Two sequential requests to the same endpoint produce different `X-Request-ID` values.
-- Ten sequential requests all produce distinct `X-Request-ID` values (no collisions in a small sample).
-- Two requests in the same test produce different IDs (values are not shared across request contexts).
-
-Test file added/updated: `tests/test_app.py` — new test functions grouped under a `# --- X-Request-ID header tests ---` comment block, following the existing style used for `X-Response-Time` tests.
+Test files added or updated: `tests/test_app.py`
 
 ## Risks / Open Questions
 
-- **`g._request_id` availability in `after_request`**: If Flask ever invokes `after_request` without a preceding `before_request` (e.g. certain 500 error flows), `g._request_id` would be absent. `g.get("_request_id", "")` provides a safe fallback; the 405 test validates that the hook still fires for Flask's own error responses.
-- **UUID version**: UUID v4 (random) is the standard choice for per-request correlation IDs. Ordered alternatives (v1 timestamp, v7 Unix-time) are out of scope.
-- **405 hook firing**: Flask's built-in 405 handler runs `after_request`, so the hook should fire. Tested explicitly because it is a Flask internal path, not a user route.
-- **README `X-Response-Time` note**: The `X-Response-Time` header has been in production since PR #46 but was never documented. This PR adds it to the README alongside `X-Request-ID` to avoid a second documentation gap.
+- The issue text does not specify whether CORS should be open to every origin or restricted to a configured allowlist. This spec assumes permissive `*` access because the app is a small demo API and there is no existing configuration mechanism for origin allowlists.
+- `Access-Control-Allow-Headers` could be expanded later if browser clients need custom headers such as `Authorization` or `X-Request-ID`. This spec only includes `Content-Type`, which is the current minimum needed for JSON requests.
+- If a future requirement adds credentialed browser requests, `Access-Control-Allow-Origin: *` will not be sufficient because wildcard origins cannot be combined with credentialed CORS.
 
 ## Out of Scope
 
-- Accepting a caller-supplied `X-Request-ID` header and echoing it back (correlation via header propagation).
-- Logging or persisting the request ID server-side.
-- Sub-millisecond or structured timing data.
+- Adding authentication, cookies, or any credentialed cross-origin flow. The issue is limited to making the existing unauthenticated API callable from browsers.
+- Introducing new application behavior beyond CORS support, such as changing task CRUD semantics or response payload shapes.

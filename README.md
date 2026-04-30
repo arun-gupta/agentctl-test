@@ -26,6 +26,18 @@ Every response includes these headers regardless of status code:
 | `X-Request-ID` | `f47ac10b-58cc-4372-a567-0e02b2c3d479` | UUID v4 unique to this request. Use it to correlate client logs with server logs. |
 | `X-Response-Time` | `12ms` | Server processing time in milliseconds, measured from the start of the request to the start of response serialisation. |
 
+### Browser access
+
+The API returns permissive CORS headers for browser-based clients:
+
+| Header | Value |
+|--------|-------|
+| `Access-Control-Allow-Origin` | `*` |
+| `Access-Control-Allow-Methods` | `GET, POST, PUT, PATCH, DELETE, OPTIONS` |
+| `Access-Control-Allow-Headers` | `Content-Type` |
+
+This allows cross-origin browser requests to the existing JSON and CSV endpoints, including preflighted requests that send `Content-Type: application/json`.
+
 ### Running locally
 
 ```bash
