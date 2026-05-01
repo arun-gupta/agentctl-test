@@ -34,10 +34,12 @@
 | `start --notify` | ✅ | [start --notify](#start---notify) |
 | `start <url>` | ✅ | [start \<url\>](#start-url--full-github-url) |
 | `start <url> --agent copilot` | ✅ | [start \<url\>](#start-url--full-github-url) |
+| `start <issue>,<issue>,...` (batch) | ⬜ | [start — batch](#start--batch) |
 | `logs` | ✅ | [logs](#logs) |
 | `logs --lines N` | ✅ | [logs](#logs) |
 | `logs --no-follow` | ✅ | [logs](#logs) |
 | `attach` | ✅ | [attach](#attach) |
+| `attach` + Ctrl+C (detach without stopping agent) | ⬜ | [attach](#attach) |
 | `resume` (approve) | ✅ | [resume](#resume) |
 | `resume "feedback"` | ✅ | [resume](#resume) |
 | `resume --headless` | ⬜ | [resume](#resume) |
@@ -53,6 +55,8 @@
 | `discard <issue>` | ✅ | [discard](#discard) |
 | `discard` (from inside worktree) | ⬜ | [discard](#discard) |
 | `discard --stale` | ✅ | [discard](#discard) |
+| `dev start` | ❌ | [dev](#dev) |
+| `dev start --quiet` | ❌ | [dev](#dev) |
 | `dev_server` in `.agentctl.yml` | ⬜ | [config](#agentctlyml-config) |
 | user-level adapter | ⬜ | [config](#agentctlyml-config) |
 
@@ -153,6 +157,16 @@ Start from any directory without `cd`-ing into the repo first.
 
 ---
 
+## `start` — batch
+
+Start multiple agents concurrently in headless mode using a comma-separated issue list. A `[slug]` argument is not allowed in batch mode.
+
+| Variant | Issues | Status |
+|---------|--------|--------|
+| `agentctl start 55,56` | 🟢 [#55](https://github.com/arun-gupta/agentctl-test/issues/55) + 🟢 [#56](https://github.com/arun-gupta/agentctl-test/issues/56) | ⬜ |
+
+---
+
 ## `logs`
 
 Stream `agent.log` for a running or finished headless agent.
@@ -176,6 +190,7 @@ Attach to a running headless agent and exit automatically when it finishes.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl attach 46` | 🔴 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ✅ |
+| `agentctl attach <issue>` then Ctrl+C (verify agent keeps running) | 🟢 [#66](https://github.com/arun-gupta/agentctl-test/issues/66) | ⬜ |
 
 ---
 
@@ -229,6 +244,19 @@ Permanently delete a worktree and branches for abandoned or intentionally droppe
 | `agentctl discard 6` | 🟢 [#6](https://github.com/arun-gupta/agentctl-test/issues/6) | ✅ |
 | `agentctl discard` (cd into worktree first) | 🟢 [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or 🟢 [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | ⬜ |
 | `agentctl discard --stale` | 🟢 [#26](https://github.com/arun-gupta/agentctl-test/issues/26) or 🟢 [#27](https://github.com/arun-gupta/agentctl-test/issues/27) | ✅ |
+
+---
+
+## `dev`
+
+Start the dev server inside a linked worktree using the `dev_server` command from `.agentctl.yml`.
+
+> **Prerequisite:** `dev_server` must be configured in `.agentctl.yml`. Not yet set in this repo — blocked until configured.
+
+| Variant | Issue | Status |
+|---------|-------|--------|
+| `agentctl dev start <issue>` | — | ❌ |
+| `agentctl dev start <issue> --quiet` | — | ❌ |
 
 ---
 
