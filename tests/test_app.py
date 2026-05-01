@@ -289,6 +289,331 @@ def test_update_task_title_too_long(client):
     assert r.status_code == 400
     assert r.get_json()["error"] == "title must not exceed 200 characters"
 
+
+# --- Input sanitization tests ---
+
+# POST title stripping
+
+def test_create_task_title_strips_spaces(client):
+    r = client.post("/tasks", json={"title": "  Buy milk  "})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "Buy milk"
+
+
+def test_create_task_title_strips_tabs(client):
+    r = client.post("/tasks", json={"title": "\tBuy milk\t"})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "Buy milk"
+
+
+def test_create_task_title_strips_newlines(client):
+    r = client.post("/tasks", json={"title": "\n  Buy milk  \n"})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "Buy milk"
+
+
+def test_create_task_title_strips_leading_only(client):
+    r = client.post("/tasks", json={"title": "  leading only"})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "leading only"
+
+
+def test_create_task_title_strips_trailing_only(client):
+    r = client.post("/tasks", json={"title": "trailing only  "})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "trailing only"
+
+
+def test_create_task_title_tabs_and_newlines_only_rejected(client):
+    r = client.post("/tasks", json={"title": "\t\n"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must not be blank"
+
+
+def test_create_task_title_preserves_internal_whitespace(client):
+    r = client.post("/tasks", json={"title": "Buy  milk"})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "Buy  milk"
+
+
+def test_create_task_stripped_title_in_response(client):
+    r = client.post("/tasks", json={"title": "  Groceries  "})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "Groceries"
+
+
+def test_create_task_stripped_title_on_get(client):
+    client.post("/tasks", json={"title": "  Groceries  "})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "Groceries"
+
+
+# POST title length check after stripping
+
+def test_create_task_title_stripped_to_200_accepted(client):
+    padded = "   " + "a" * 200
+    r = client.post("/tasks", json={"title": padded})
+    assert r.status_code == 201
+    assert r.get_json()["title"] == "a" * 200
+
+
+def test_create_task_title_stripped_to_201_rejected(client):
+    r = client.post("/tasks", json={"title": "a" * 201})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must not exceed 200 characters"
+
+
+def test_create_task_title_padded_around_201_core_rejected(client):
+    r = client.post("/tasks", json={"title": "  " + "a" * 201 + "  "})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must not exceed 200 characters"
+
+
+# POST description stripping
+
+def test_create_task_description_strips_spaces(client):
+    r = client.post("/tasks", json={"title": "T", "description": "  Pick up 2%  "})
+    assert r.status_code == 201
+    assert r.get_json()["description"] == "Pick up 2%"
+
+
+def test_create_task_description_strips_tabs(client):
+    r = client.post("/tasks", json={"title": "T", "description": "\t notes \t"})
+    assert r.status_code == 201
+    assert r.get_json()["description"] == "notes"
+
+
+def test_create_task_description_spaces_only_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": "   "})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must not be blank"
+
+
+def test_create_task_description_tab_only_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": "\t"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must not be blank"
+
+
+def test_create_task_description_newline_only_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": "\n"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must not be blank"
+
+
+def test_create_task_description_empty_string_accepted(client):
+    r = client.post("/tasks", json={"title": "T", "description": ""})
+    assert r.status_code == 201
+    assert r.get_json()["description"] == ""
+
+
+def test_create_task_description_absent_defaults_to_empty(client):
+    r = client.post("/tasks", json={"title": "T"})
+    assert r.status_code == 201
+    assert r.get_json()["description"] == ""
+
+
+def test_create_task_description_preserves_internal_whitespace(client):
+    r = client.post("/tasks", json={"title": "T", "description": "line1  line2"})
+    assert r.status_code == 201
+    assert r.get_json()["description"] == "line1  line2"
+
+
+def test_create_task_stripped_description_in_response(client):
+    r = client.post("/tasks", json={"title": "T", "description": "  Needs milk  "})
+    assert r.status_code == 201
+    assert r.get_json()["description"] == "Needs milk"
+
+
+# POST description type validation
+
+def test_create_task_description_integer_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": 42})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+def test_create_task_description_boolean_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": True})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+def test_create_task_description_array_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": ["a"]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+def test_create_task_description_null_rejected(client):
+    r = client.post("/tasks", json={"title": "T", "description": None})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+# POST both fields sanitized together
+
+def test_create_task_both_fields_stripped(client):
+    r = client.post("/tasks", json={"title": "  Groceries  ", "description": "  Needs milk  "})
+    assert r.status_code == 201
+    data = r.get_json()
+    assert data["title"] == "Groceries"
+    assert data["description"] == "Needs milk"
+
+
+# PUT title stripping
+
+def test_update_task_title_strips_spaces(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"title": "  Updated  "})
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "Updated"
+
+
+def test_update_task_title_strips_tabs(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"title": "\tUpdated\t"})
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "Updated"
+
+
+def test_update_task_title_tabs_and_newlines_only_rejected(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"title": "\t\n"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must not be blank"
+
+
+def test_update_task_omitting_title_preserves_existing(client):
+    client.post("/tasks", json={"title": "  Keep me  "})
+    r = client.put("/tasks/1", json={"completed": True})
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "Keep me"
+
+
+# PUT title length after stripping
+
+def test_update_task_title_stripped_to_200_accepted(client):
+    client.post("/tasks", json={"title": "Original"})
+    padded = "   " + "a" * 200
+    r = client.put("/tasks/1", json={"title": padded})
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "a" * 200
+
+
+def test_update_task_title_stripped_to_201_rejected(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"title": "a" * 201})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "title must not exceed 200 characters"
+
+
+# PUT description stripping
+
+def test_update_task_description_strips_spaces(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": "  New desc  "})
+    assert r.status_code == 200
+    assert r.get_json()["description"] == "New desc"
+
+
+def test_update_task_description_strips_tabs_and_newlines(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": "\tnotes\n"})
+    assert r.status_code == 200
+    assert r.get_json()["description"] == "notes"
+
+
+def test_update_task_description_spaces_only_rejected(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": "   "})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must not be blank"
+
+
+def test_update_task_description_empty_string_accepted(client):
+    client.post("/tasks", json={"title": "T", "description": "has content"})
+    r = client.put("/tasks/1", json={"description": ""})
+    assert r.status_code == 200
+    assert r.get_json()["description"] == ""
+
+
+def test_update_task_omitting_description_preserves_existing(client):
+    client.post("/tasks", json={"title": "T", "description": "keep me"})
+    r = client.put("/tasks/1", json={"title": "Updated"})
+    assert r.status_code == 200
+    assert r.get_json()["description"] == "keep me"
+
+
+def test_update_task_description_preserves_internal_whitespace(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": "inner  spaces"})
+    assert r.status_code == 200
+    assert r.get_json()["description"] == "inner  spaces"
+
+
+# PUT description type validation
+
+def test_update_task_description_integer_rejected(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": 42})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+def test_update_task_description_boolean_rejected(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": False})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+def test_update_task_description_null_rejected(client):
+    client.post("/tasks", json={"title": "T"})
+    r = client.put("/tasks/1", json={"description": None})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "description must be a string"
+
+
+# PUT both fields sanitized together
+
+def test_update_task_both_fields_stripped(client):
+    client.post("/tasks", json={"title": "Original"})
+    r = client.put("/tasks/1", json={"title": "  Renamed  ", "description": "  New body  "})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["title"] == "Renamed"
+    assert data["description"] == "New body"
+
+
+# Round-trip and list verification
+
+def test_create_task_stripped_title_appears_in_list(client):
+    client.post("/tasks", json={"title": "  Listed  "})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    assert r.get_json()["items"][0]["title"] == "Listed"
+
+
+def test_create_task_stripped_title_appears_in_export(client):
+    import csv, io
+    client.post("/tasks", json={"title": "  Exported  ", "description": "  desc  "})
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    rows = list(csv.DictReader(io.StringIO(r.data.decode())))
+    assert rows[0]["title"] == "Exported"
+    assert rows[0]["description"] == "desc"
+
+
+def test_create_then_update_preserves_stripped_title(client):
+    client.post("/tasks", json={"title": "  Original  "})
+    client.put("/tasks/1", json={"completed": True})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["title"] == "Original"
+
+
 def test_stats_empty(client):
     r = client.get("/tasks/stats")
     assert r.status_code == 200
