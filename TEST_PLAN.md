@@ -155,7 +155,7 @@ Start from any directory without `cd`-ing into the repo first.
 |---------|-------|--------|
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/65` | 🔴 [#65](https://github.com/arun-gupta/agentctl-test/issues/65) | ✅ |
 | `agentctl start https://github.com/arun-gupta/agentctl-test/issues/54 --agent copilot` | 🔴 [#54](https://github.com/arun-gupta/agentctl-test/issues/54) | ✅ |
-| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/70 --sdd=plain` | 🟢 [#70](https://github.com/arun-gupta/agentctl-test/issues/70) | ⬜ |
+| `agentctl start https://github.com/arun-gupta/agentctl-test/issues/70 --sdd=plain` | 🔴 [#70](https://github.com/arun-gupta/agentctl-test/issues/70) | ⬜ |
 
 ---
 
