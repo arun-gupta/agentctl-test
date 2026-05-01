@@ -526,8 +526,16 @@ def create_task():
         return jsonify({"error": "title is required"}), 400
     if not isinstance(title, str) or not title.strip():
         return jsonify({"error": "title must not be blank"}), 400
+    title = title.strip()
     if len(title) > 200:
         return jsonify({"error": "title must not exceed 200 characters"}), 400
+
+    description_raw = data.get("description", "")
+    if not isinstance(description_raw, str):
+        return jsonify({"error": "description must be a string"}), 400
+    description = description_raw.strip()
+    if description_raw and not description:
+        return jsonify({"error": "description must not be blank"}), 400
 
     error, due_date = _parse_due_date(data.get("due_date"))
     if error:
@@ -541,7 +549,7 @@ def create_task():
     cur = db.execute(
         "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at) "
         "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'))",
-        (title, data.get("description", ""), priority, due_date, notes),
+        (title, description, priority, due_date, notes),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -568,10 +576,21 @@ def update_task(task_id):
         title_value = data["title"]
         if not isinstance(title_value, str) or not title_value.strip():
             return jsonify({"error": "title must not be blank"}), 400
+        title_value = title_value.strip()
         if len(title_value) > 200:
             return jsonify({"error": "title must not exceed 200 characters"}), 400
+        data = {**data, "title": title_value}
 
     task = _row(row)
+
+    if "description" in data:
+        description_raw = data["description"]
+        if not isinstance(description_raw, str):
+            return jsonify({"error": "description must be a string"}), 400
+        description_value = description_raw.strip()
+        if description_raw and not description_value:
+            return jsonify({"error": "description must not be blank"}), 400
+        data = {**data, "description": description_value}
 
     due_date = task["due_date"]
     if "due_date" in data:
