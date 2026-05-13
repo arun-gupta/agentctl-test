@@ -85,7 +85,7 @@ app.config["LIST_PAGE_SIZE_MAX"] = LIST_PAGE_SIZE_MAX
 PRIORITY_LEVELS = {"low", "medium", "high"}
 SORT_FIELDS = {"created_at", "priority", "title"}
 SORT_ORDERS = {"asc", "desc"}
-ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size"})
+ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size", "urgent"})
 PRIORITY_SORT_SQL = (
     "CASE priority "
     "WHEN 'low' THEN 1 "
@@ -109,7 +109,8 @@ def get_db():
             "priority TEXT NOT NULL DEFAULT 'medium', "
             "due_date TEXT, "
             "notes TEXT, "
-            "created_at TEXT NOT NULL DEFAULT '')"
+            "created_at TEXT NOT NULL DEFAULT '', "
+            "urgent INTEGER NOT NULL DEFAULT 0)"
         )
         columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
         if "due_date" not in columns:
@@ -122,6 +123,8 @@ def get_db():
                 "UPDATE tasks SET created_at = strftime('%Y-%m-%dT%H:%M:%S', 'now') "
                 "WHERE created_at = ''"
             )
+        if "urgent" not in columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0")
         db.commit()
     return g.db
 
@@ -143,6 +146,7 @@ def _row(row):
         "due_date": row["due_date"],
         "notes": row["notes"],
         "created_at": row["created_at"],
+        "urgent": bool(row["urgent"]),
     }
 
 
@@ -174,10 +178,10 @@ def _validate_query_params(allowed):
 def _tasks_order_by(sort, order):
     direction = order.upper()
     if sort == "priority":
-        return f"{PRIORITY_SORT_SQL} {direction}, id ASC"
+        return f"urgent DESC, {PRIORITY_SORT_SQL} {direction}, id ASC"
     if sort == "title":
-        return f"LOWER(COALESCE(title, '')) {direction}, id ASC"
-    return f"created_at {direction}, id {direction}"
+        return f"urgent DESC, LOWER(COALESCE(title, '')) {direction}, id ASC"
+    return f"urgent DESC, created_at {direction}, id {direction}"
 
 
 def _priority_rank(priority):
@@ -218,7 +222,7 @@ def _parse_page_size():
     return None, page_size
 
 
-def _cursor_payload(sort, order, priority, row):
+def _cursor_payload(sort, order, priority, urgent_filter, row):
     if sort == "priority":
         last_value = _priority_rank(row["priority"])
     elif sort == "title":
@@ -230,6 +234,8 @@ def _cursor_payload(sort, order, priority, row):
         "sort": sort,
         "order": order,
         "priority": priority,
+        "urgent_filter": urgent_filter,
+        "last_urgent": int(bool(row["urgent"])),
         "last_value": last_value,
         "last_id": row["id"],
     }
@@ -251,7 +257,7 @@ def _decode_cursor(raw_cursor):
     except (ValueError, json.JSONDecodeError):
         return _cursor_error(), None
 
-    required_keys = {"sort", "order", "priority", "last_value", "last_id"}
+    required_keys = {"sort", "order", "priority", "urgent_filter", "last_urgent", "last_value", "last_id"}
     if not isinstance(payload, dict) or set(payload) != required_keys:
         return _cursor_error(), None
 
@@ -259,6 +265,12 @@ def _decode_cursor(raw_cursor):
         return _cursor_error(), None
 
     if payload["priority"] is not None and payload["priority"] not in PRIORITY_LEVELS:
+        return _cursor_error(), None
+
+    if payload["urgent_filter"] is not None and not isinstance(payload["urgent_filter"], bool):
+        return _cursor_error(), None
+
+    if not isinstance(payload["last_urgent"], int) or payload["last_urgent"] not in (0, 1):
         return _cursor_error(), None
 
     if not isinstance(payload["last_id"], int) or payload["last_id"] < 1:
@@ -275,6 +287,8 @@ def _cursor_clause(sort, order, cursor_payload):
     if cursor_payload is None:
         return "", []
 
+    last_urgent = cursor_payload["last_urgent"]
+
     if sort == "priority":
         sort_sql = PRIORITY_SORT_SQL
         id_comparator = ">"
@@ -286,17 +300,23 @@ def _cursor_clause(sort, order, cursor_payload):
         id_comparator = ">" if order == "asc" else "<"
 
     value_comparator = ">" if order == "asc" else "<"
+    secondary = (
+        f"({sort_sql} {value_comparator} ? OR ({sort_sql} = ? AND id {id_comparator} ?))"
+    )
+    secondary_params = [
+        cursor_payload["last_value"],
+        cursor_payload["last_value"],
+        cursor_payload["last_id"],
+    ]
+    # urgent is always DESC, so rows "after" last_urgent are: urgent < last_urgent
+    # OR same urgency and passes the secondary sort condition
     return (
-        f"({sort_sql} {value_comparator} ? OR ({sort_sql} = ? AND id {id_comparator} ?))",
-        [
-            cursor_payload["last_value"],
-            cursor_payload["last_value"],
-            cursor_payload["last_id"],
-        ],
+        f"(urgent < ? OR (urgent = ? AND {secondary}))",
+        [last_urgent, last_urgent, *secondary_params],
     )
 
 
-def _fetch_task_collection(priority, sort, order, page_size, raw_cursor):
+def _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_cursor):
     cursor_error, cursor_payload = _decode_cursor(raw_cursor)
     if cursor_error:
         return cursor_error, None
@@ -306,6 +326,7 @@ def _fetch_task_collection(priority, sort, order, page_size, raw_cursor):
             cursor_payload["sort"] != sort
             or cursor_payload["order"] != order
             or cursor_payload["priority"] != priority
+            or cursor_payload["urgent_filter"] != urgent_filter
         ):
             return _cursor_error("cursor does not match the current query"), None
 
@@ -316,6 +337,10 @@ def _fetch_task_collection(priority, sort, order, page_size, raw_cursor):
     if priority is not None:
         where_parts.append("priority = ?")
         where_params.append(priority)
+
+    if urgent_filter is not None:
+        where_parts.append("urgent = ?")
+        where_params.append(int(urgent_filter))
 
     count_where = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
     total = db.execute(
@@ -335,7 +360,7 @@ def _fetch_task_collection(priority, sort, order, page_size, raw_cursor):
 
     has_more = len(rows) > page_size
     items = rows[:page_size]
-    next_cursor = _encode_cursor(_cursor_payload(sort, order, priority, items[-1])) if has_more else None
+    next_cursor = _encode_cursor(_cursor_payload(sort, order, priority, urgent_filter, items[-1])) if has_more else None
 
     return None, {
         "items": items,
@@ -383,6 +408,16 @@ def list_tasks():
     order = request.args.get("order", "asc")
     raw_cursor = request.args.get("cursor")
 
+    urgent_filter = None
+    if "urgent" in request.args:
+        urgent_str = request.args.get("urgent")
+        if urgent_str == "true":
+            urgent_filter = True
+        elif urgent_str == "false":
+            urgent_filter = False
+        else:
+            return jsonify({"error": "urgent must be true or false"}), 400
+
     error, page_size = _parse_page_size()
     if error:
         return error
@@ -400,7 +435,7 @@ def list_tasks():
         if error:
             return error
 
-    error, page = _fetch_task_collection(priority, sort, order, page_size, raw_cursor)
+    error, page = _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_cursor)
     if error:
         return error
 
@@ -452,6 +487,16 @@ def export_tasks():
     order = request.args.get("order", "asc")
     raw_cursor = request.args.get("cursor")
 
+    urgent_filter = None
+    if "urgent" in request.args:
+        urgent_str = request.args.get("urgent")
+        if urgent_str == "true":
+            urgent_filter = True
+        elif urgent_str == "false":
+            urgent_filter = False
+        else:
+            return jsonify({"error": "urgent must be true or false"}), 400
+
     error, page_size = _parse_page_size()
     if error:
         return error
@@ -469,13 +514,13 @@ def export_tasks():
         if error:
             return error
 
-    error, page = _fetch_task_collection(priority, sort, order, page_size, raw_cursor)
+    error, page = _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_cursor)
     if error:
         return error
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "notes", "created_at"])
+    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "notes", "created_at", "urgent"])
     for row in page["items"]:
         writer.writerow([
             row["id"],
@@ -486,6 +531,7 @@ def export_tasks():
             row["due_date"] if row["due_date"] is not None else "",
             row["notes"] if row["notes"] is not None else "",
             row["created_at"],
+            str(bool(row["urgent"])).lower(),
         ])
     return Response(
         buf.getvalue(),
@@ -546,11 +592,15 @@ def create_task():
     if notes is not None and not isinstance(notes, str):
         return jsonify({"error": "notes must be a string or null"}), 400
 
+    urgent = data.get("urgent", False)
+    if not isinstance(urgent, bool):
+        return jsonify({"error": "urgent must be a boolean"}), 400
+
     db = get_db()
     cur = db.execute(
-        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at) "
-        "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'))",
-        (title, description, priority, due_date, notes),
+        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at, urgent) "
+        "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'), ?)",
+        (title, description, priority, due_date, notes, int(urgent)),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -607,8 +657,15 @@ def update_task(task_id):
     else:
         notes = task["notes"]
 
+    if "urgent" in data:
+        urgent = data["urgent"]
+        if not isinstance(urgent, bool):
+            return jsonify({"error": "urgent must be a boolean"}), 400
+    else:
+        urgent = task["urgent"]
+
     db.execute(
-        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ?, urgent = ? WHERE id = ?",
         (
             data.get("title", task["title"]),
             data.get("description", task["description"]),
@@ -616,6 +673,7 @@ def update_task(task_id):
             data.get("priority", task["priority"]),
             due_date,
             notes,
+            int(urgent),
             task_id,
         ),
     )
