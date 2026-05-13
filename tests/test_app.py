@@ -167,6 +167,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "due_date": None,
             "notes": None,
             "created_at": high["created_at"],
+            "urgent": False,
         }
     ]
     assert data["total"] == 1
@@ -857,7 +858,7 @@ def test_export_empty_returns_header_only(client):
     r = client.get("/tasks/export")
     assert r.status_code == 200
     lines = r.data.decode().splitlines()
-    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at"]
+    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at,urgent"]
 
 
 def test_export_includes_all_tasks(client):
@@ -1527,3 +1528,167 @@ def test_rate_limit_reset_time_is_unix_timestamp(rate_limited_client):
     now = int(time.time())
     assert reset >= now
     assert reset <= now + 61
+
+
+# --- urgent field tests ---
+
+def test_create_task_urgent_defaults_to_false(client):
+    r = client.post("/tasks", json={"title": "Normal task"})
+    assert r.status_code == 201
+    assert r.get_json()["urgent"] is False
+
+
+def test_create_task_with_urgent_true(client):
+    r = client.post("/tasks", json={"title": "Fire drill", "urgent": True})
+    assert r.status_code == 201
+    assert r.get_json()["urgent"] is True
+
+
+def test_create_task_with_urgent_false(client):
+    r = client.post("/tasks", json={"title": "Later", "urgent": False})
+    assert r.status_code == 201
+    assert r.get_json()["urgent"] is False
+
+
+def test_create_task_urgent_non_boolean_rejected(client):
+    r = client.post("/tasks", json={"title": "Bad", "urgent": "yes"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "urgent must be a boolean"
+
+
+def test_create_task_urgent_integer_rejected(client):
+    r = client.post("/tasks", json={"title": "Bad", "urgent": 1})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "urgent must be a boolean"
+
+
+def test_get_task_includes_urgent(client):
+    client.post("/tasks", json={"title": "Task", "urgent": True})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["urgent"] is True
+
+
+def test_list_tasks_includes_urgent(client):
+    client.post("/tasks", json={"title": "A", "urgent": True})
+    client.post("/tasks", json={"title": "B"})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    assert items[0]["urgent"] is True
+    assert items[1]["urgent"] is False
+
+
+def test_update_task_urgent_to_true(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"urgent": True})
+    assert r.status_code == 200
+    assert r.get_json()["urgent"] is True
+
+
+def test_update_task_urgent_to_false(client):
+    client.post("/tasks", json={"title": "Task", "urgent": True})
+    r = client.put("/tasks/1", json={"urgent": False})
+    assert r.status_code == 200
+    assert r.get_json()["urgent"] is False
+
+
+def test_update_task_urgent_non_boolean_rejected(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"urgent": "true"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "urgent must be a boolean"
+
+
+def test_update_task_omitting_urgent_preserves_value(client):
+    client.post("/tasks", json={"title": "Task", "urgent": True})
+    r = client.put("/tasks/1", json={"title": "Updated"})
+    assert r.status_code == 200
+    assert r.get_json()["urgent"] is True
+
+
+def test_list_tasks_filter_urgent_true(client):
+    client.post("/tasks", json={"title": "Urgent task", "urgent": True})
+    client.post("/tasks", json={"title": "Normal task"})
+    r = client.get("/tasks?urgent=true")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Urgent task"
+    assert data["items"][0]["urgent"] is True
+
+
+def test_list_tasks_filter_urgent_false(client):
+    client.post("/tasks", json={"title": "Urgent task", "urgent": True})
+    client.post("/tasks", json={"title": "Normal task"})
+    r = client.get("/tasks?urgent=false")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Normal task"
+    assert data["items"][0]["urgent"] is False
+
+
+def test_list_tasks_filter_urgent_invalid_value_rejected(client):
+    r = client.get("/tasks?urgent=yes")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "urgent must be true or false"
+
+
+def test_list_tasks_urgent_sorts_before_non_urgent(client):
+    client.post("/tasks", json={"title": "Normal A"})
+    client.post("/tasks", json={"title": "Normal B"})
+    client.post("/tasks", json={"title": "Urgent X", "urgent": True})
+    r = client.get("/tasks?sort=created_at&order=asc")
+    assert r.status_code == 200
+    titles = [item["title"] for item in r.get_json()["items"]]
+    assert titles[0] == "Urgent X"
+    assert set(titles[1:]) == {"Normal A", "Normal B"}
+
+
+def test_list_tasks_urgent_low_priority_sorts_before_non_urgent_high_priority(client):
+    client.post("/tasks", json={"title": "High priority", "priority": "high"})
+    client.post("/tasks", json={"title": "Urgent low", "priority": "low", "urgent": True})
+    r = client.get("/tasks?sort=priority&order=desc")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    assert items[0]["title"] == "Urgent low"
+    assert items[1]["title"] == "High priority"
+
+
+def test_list_tasks_multiple_urgent_then_non_urgent(client):
+    client.post("/tasks", json={"title": "U1", "urgent": True})
+    client.post("/tasks", json={"title": "N1"})
+    client.post("/tasks", json={"title": "U2", "urgent": True})
+    client.post("/tasks", json={"title": "N2"})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    urgent_items = [i for i in items if i["urgent"]]
+    non_urgent_items = [i for i in items if not i["urgent"]]
+    # All urgent items appear before any non-urgent item
+    if urgent_items and non_urgent_items:
+        last_urgent_pos = max(items.index(i) for i in urgent_items)
+        first_non_urgent_pos = min(items.index(i) for i in non_urgent_items)
+        assert last_urgent_pos < first_non_urgent_pos
+
+
+def test_pagination_urgent_filter_cursor_shape_check(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"Task {i}", "urgent": True})
+    first_page = client.get("/tasks?urgent=true&page_size=2").get_json()
+    r = client.get(f"/tasks?page_size=2&cursor={first_page['next_cursor']}")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "cursor does not match the current query"
+
+
+def test_export_includes_urgent_column(client):
+    import csv, io
+    client.post("/tasks", json={"title": "Fire drill", "urgent": True})
+    client.post("/tasks", json={"title": "Normal"})
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["urgent"] == "true"
+    assert rows[1]["urgent"] == "false"
