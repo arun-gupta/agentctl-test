@@ -192,7 +192,7 @@ Attach to a running headless agent and exit automatically when it finishes.
 | Variant | Issue | Status |
 |---------|-------|--------|
 | `agentctl attach 46` | 🔴 [#46](https://github.com/arun-gupta/agentctl-test/issues/46) | ✅ |
-| `agentctl attach <issue>` then Ctrl+C (verify agent keeps running) | 🟢 [#66](https://github.com/arun-gupta/agentctl-test/issues/66) | ✅ |
+| `agentctl attach <issue>` then Ctrl+C (verify agent keeps running) | 🔴 [#66](https://github.com/arun-gupta/agentctl-test/issues/66) | ✅ |
 
 ---
 
