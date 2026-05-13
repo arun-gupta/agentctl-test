@@ -1,3 +1,4 @@
 notify: true
 test_cmd: pytest tests/ -v
+build_cmd: python3 -m py_compile app.py && touch {output}
 
