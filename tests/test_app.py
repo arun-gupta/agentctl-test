@@ -21,7 +21,24 @@ def client():
 def test_health_check(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.get_json() == {"status": "ok"}
+    data = r.get_json()
+    assert data["status"] == "ok"
+    assert isinstance(data["uptime_seconds"], int)
+    assert data["uptime_seconds"] >= 0
+
+
+def test_health_check_uptime_increases(client):
+    import time
+    r1 = client.get("/health")
+    time.sleep(0.01)
+    r2 = client.get("/health")
+    assert r2.get_json()["uptime_seconds"] >= r1.get_json()["uptime_seconds"]
+
+
+def test_health_check_response_has_only_expected_keys(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert set(r.get_json().keys()) == {"status", "uptime_seconds"}
 
 
 def test_list_empty(client):

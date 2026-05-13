@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
 
+_start_time = time.monotonic()
 _rate_limit_store: dict[str, list[float]] = {}
 _rate_limit_lock = threading.Lock()
 
@@ -369,7 +370,7 @@ def health_check():
     error = _validate_query_params(frozenset())
     if error:
         return error
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "uptime_seconds": int(time.monotonic() - _start_time)})
 
 
 @app.route("/tasks", methods=["GET"])
