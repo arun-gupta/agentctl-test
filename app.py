@@ -2,7 +2,9 @@ import base64
 import csv
 import io
 import json
+import logging
 import sqlite3
+import sys
 import threading
 import time
 import uuid
@@ -10,6 +12,41 @@ from datetime import datetime
 from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
+
+
+class _JsonFormatter(logging.Formatter):
+    _SKIP = frozenset({
+        "args", "created", "exc_info", "exc_text", "filename", "funcName",
+        "levelname", "levelno", "lineno", "message", "module", "msecs",
+        "msg", "name", "pathname", "process", "processName", "relativeCreated",
+        "stack_info", "taskName", "thread", "threadName",
+    })
+
+    def format(self, record):
+        record.message = record.getMessage()
+        data = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "message": record.message,
+        }
+        for key, value in record.__dict__.items():
+            if key not in self._SKIP and not key.startswith("_"):
+                data[key] = value
+        return json.dumps(data, default=str)
+
+
+def _setup_logging():
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(_JsonFormatter())
+    _logger = logging.getLogger("api")
+    _logger.setLevel(logging.INFO)
+    if not _logger.handlers:
+        _logger.addHandler(handler)
+    _logger.propagate = False
+    return _logger
+
+
+logger = _setup_logging()
 
 _start_time = time.monotonic()
 _rate_limit_store: dict[str, list[float]] = {}
@@ -52,6 +89,11 @@ def _enforce_rate_limit():
             g._rl_limit = limit
             g._rl_remaining = 0
             g._rl_reset = reset_at
+            logger.warning("rate limit exceeded", extra={
+                "request_id": g.get("_request_id", ""),
+                "client": client_key,
+                "limit": limit,
+            })
             resp = jsonify({"error": "rate limit exceeded"})
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after)
@@ -77,6 +119,14 @@ def _add_response_time_header(response):
         response.headers["X-RateLimit-Limit"] = str(g._rl_limit)
         response.headers["X-RateLimit-Remaining"] = str(g._rl_remaining)
         response.headers["X-RateLimit-Reset"] = str(g._rl_reset)
+    logger.info("request", extra={
+        "request_id": g.get("_request_id", ""),
+        "method": request.method,
+        "path": request.path,
+        "status": response.status_code,
+        "response_time_ms": elapsed_ms,
+        "remote_addr": request.remote_addr,
+    })
     return response
 app.config["DATABASE"] = "tasks.db"
 app.config["LIST_PAGE_SIZE_DEFAULT"] = LIST_PAGE_SIZE_DEFAULT
@@ -553,6 +603,7 @@ def get_task(task_id):
         return error
     row = get_db().execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not row:
+        logger.warning("task not found", extra={"request_id": g.get("_request_id", ""), "task_id": task_id})
         return jsonify({"error": "Task not found"}), 404
     return jsonify(_row(row))
 
@@ -604,6 +655,11 @@ def create_task():
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
+    logger.info("task created", extra={
+        "request_id": g.get("_request_id", ""),
+        "task_id": row["id"],
+        "priority": row["priority"],
+    })
     return jsonify(_row(row)), 201
 
 
@@ -612,6 +668,7 @@ def update_task(task_id):
     db = get_db()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not row:
+        logger.warning("task not found", extra={"request_id": g.get("_request_id", ""), "task_id": task_id})
         return jsonify({"error": "Task not found"}), 404
     data = request.get_json(silent=True)
     if data is None and request.is_json and request.get_data():
@@ -679,6 +736,7 @@ def update_task(task_id):
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    logger.info("task updated", extra={"request_id": g.get("_request_id", ""), "task_id": task_id})
     return jsonify(_row(row))
 
 
@@ -687,6 +745,7 @@ def delete_completed_tasks():
     db = get_db()
     cur = db.execute("DELETE FROM tasks WHERE completed = 1")
     db.commit()
+    logger.info("completed tasks deleted", extra={"request_id": g.get("_request_id", ""), "deleted": cur.rowcount})
     return jsonify({"deleted": cur.rowcount})
 
 
@@ -695,9 +754,11 @@ def delete_task(task_id):
     db = get_db()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not row:
+        logger.warning("task not found", extra={"request_id": g.get("_request_id", ""), "task_id": task_id})
         return jsonify({"error": "Task not found"}), 404
     db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     db.commit()
+    logger.info("task deleted", extra={"request_id": g.get("_request_id", ""), "task_id": task_id})
     return jsonify({"message": "Task deleted"})
 
 
@@ -707,6 +768,7 @@ def toggle_task(task_id):
     db = get_db()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not row:
+        logger.warning("task not found", extra={"request_id": g.get("_request_id", ""), "task_id": task_id})
         return jsonify({"error": "Task not found"}), 404
     new_completed = not bool(row["completed"])
     db.execute(
@@ -714,6 +776,11 @@ def toggle_task(task_id):
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    logger.info("task toggled", extra={
+        "request_id": g.get("_request_id", ""),
+        "task_id": task_id,
+        "completed": new_completed,
+    })
     return jsonify(_row(row))
 
 

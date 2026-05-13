@@ -1,5 +1,7 @@
+import json
+import logging
 import pytest
-from app import app, get_db, _rate_limit_store
+from app import app, get_db, _rate_limit_store, logger as api_logger
 
 
 @pytest.fixture(autouse=True)
@@ -1692,3 +1694,133 @@ def test_export_includes_urgent_column(client):
     rows = list(reader)
     assert rows[0]["urgent"] == "true"
     assert rows[1]["urgent"] == "false"
+
+
+# --- Structured logging tests ---
+
+class _CaptureHandler(logging.Handler):
+    def __init__(self):
+        super().__init__(logging.DEBUG)
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
+
+
+@pytest.fixture
+def captured_logs():
+    """Attach a handler directly to the api logger and yield parsed JSON log dicts."""
+    from app import _JsonFormatter
+    handler = _CaptureHandler()
+    api_logger.addHandler(handler)
+    fmt = _JsonFormatter()
+
+    yield lambda: [json.loads(fmt.format(r)) for r in handler.records]
+
+    api_logger.removeHandler(handler)
+
+
+def test_request_log_is_valid_json(client, captured_logs):
+    client.get("/health")
+    logs = captured_logs()
+    request_logs = [l for l in logs if l.get("message") == "request"]
+    assert len(request_logs) == 1
+
+
+def test_request_log_contains_expected_fields(client, captured_logs):
+    client.get("/health")
+    logs = captured_logs()
+    req = next(l for l in logs if l.get("message") == "request")
+    assert req["method"] == "GET"
+    assert req["path"] == "/health"
+    assert req["status"] == 200
+    assert isinstance(req["response_time_ms"], int)
+    assert "request_id" in req
+    assert "timestamp" in req
+    assert req["level"] == "INFO"
+
+
+def test_request_log_includes_request_id_matching_header(client, captured_logs):
+    r = client.get("/health")
+    header_id = r.headers.get("X-Request-ID")
+    logs = captured_logs()
+    req = next(l for l in logs if l.get("message") == "request")
+    assert req["request_id"] == header_id
+
+
+def test_task_created_log_emitted(client, captured_logs):
+    client.post("/tasks", json={"title": "Log me", "priority": "high"})
+    logs = captured_logs()
+    created = [l for l in logs if l.get("message") == "task created"]
+    assert len(created) == 1
+    assert created[0]["task_id"] == 1
+    assert created[0]["priority"] == "high"
+
+
+def test_task_updated_log_emitted(client, captured_logs):
+    client.post("/tasks", json={"title": "Original"})
+    client.put("/tasks/1", json={"title": "Updated"})
+    logs = captured_logs()
+    updated = [l for l in logs if l.get("message") == "task updated"]
+    assert len(updated) == 1
+    assert updated[0]["task_id"] == 1
+
+
+def test_task_deleted_log_emitted(client, captured_logs):
+    client.post("/tasks", json={"title": "Delete me"})
+    client.delete("/tasks/1")
+    logs = captured_logs()
+    deleted = [l for l in logs if l.get("message") == "task deleted"]
+    assert len(deleted) == 1
+    assert deleted[0]["task_id"] == 1
+
+
+def test_task_toggled_log_emitted(client, captured_logs):
+    client.post("/tasks", json={"title": "Toggle me"})
+    client.patch("/tasks/1/toggle")
+    logs = captured_logs()
+    toggled = [l for l in logs if l.get("message") == "task toggled"]
+    assert len(toggled) == 1
+    assert toggled[0]["task_id"] == 1
+    assert toggled[0]["completed"] is True
+
+
+def test_task_not_found_log_is_warning(client, captured_logs):
+    client.get("/tasks/999")
+    logs = captured_logs()
+    warnings = [l for l in logs if l.get("message") == "task not found"]
+    assert len(warnings) == 1
+    assert warnings[0]["level"] == "WARNING"
+    assert warnings[0]["task_id"] == 999
+
+
+def test_completed_tasks_deleted_log_emitted(client, captured_logs):
+    client.post("/tasks", json={"title": "Done"})
+    client.patch("/tasks/1/toggle")
+    client.delete("/tasks/completed")
+    logs = captured_logs()
+    batch = [l for l in logs if l.get("message") == "completed tasks deleted"]
+    assert len(batch) == 1
+    assert batch[0]["deleted"] == 1
+
+
+def test_log_timestamp_format(client, captured_logs):
+    client.get("/health")
+    logs = captured_logs()
+    req = next(l for l in logs if l.get("message") == "request")
+    from datetime import datetime
+    datetime.strptime(req["timestamp"], "%Y-%m-%dT%H:%M:%S")
+
+
+def test_rate_limit_exceeded_log_is_warning(client, captured_logs):
+    app.config["RATE_LIMIT_ENABLED"] = True
+    app.config["RATE_LIMIT_REQUESTS"] = 1
+    app.config["RATE_LIMIT_WINDOW"] = 60
+    client.get("/health")  # consume the one allowed request
+    client.get("/health")  # this one should be rate-limited
+    app.config["RATE_LIMIT_ENABLED"] = False
+    logs = captured_logs()
+    rl_logs = [l for l in logs if l.get("message") == "rate limit exceeded"]
+    assert len(rl_logs) == 1
+    assert rl_logs[0]["level"] == "WARNING"
+    assert rl_logs[0]["limit"] == 1
