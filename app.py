@@ -2,6 +2,7 @@ import base64
 import csv
 import io
 import json
+import logging
 import sqlite3
 import threading
 import time
@@ -10,6 +11,34 @@ from datetime import datetime
 from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
+
+# Structured Logging Configuration
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "event": record.msg if isinstance(record.msg, str) else "log_event",
+        }
+        if isinstance(record.msg, dict):
+            log_record.update(record.msg)
+            log_record["event"] = "request_completed"
+
+        if hasattr(record, "request_id"):
+            log_record["request_id"] = record.request_id
+        
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+            
+        return json.dumps(log_record)
+
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger = logging.getLogger("app")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+# Disable propagation to avoid duplicate logs if the root logger is also configured
+logger.propagate = False
 
 _start_time = time.monotonic()
 _rate_limit_store: dict[str, list[float]] = {}
@@ -68,8 +97,10 @@ def _enforce_rate_limit():
 def _add_response_time_header(response):
     start = g.get("_request_start", time.monotonic())
     elapsed_ms = round((time.monotonic() - start) * 1000)
+    request_id = g.get("_request_id", "")
+    
     response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
-    response.headers["X-Request-ID"] = g.get("_request_id", "")
+    response.headers["X-Request-ID"] = request_id
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
@@ -77,6 +108,17 @@ def _add_response_time_header(response):
         response.headers["X-RateLimit-Limit"] = str(g._rl_limit)
         response.headers["X-RateLimit-Remaining"] = str(g._rl_remaining)
         response.headers["X-RateLimit-Reset"] = str(g._rl_reset)
+    
+    # Log request completion
+    logger.info({
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.path,
+        "status": response.status_code,
+        "duration_ms": elapsed_ms,
+        "ip": request.remote_addr,
+    })
+    
     return response
 app.config["DATABASE"] = "tasks.db"
 app.config["LIST_PAGE_SIZE_DEFAULT"] = LIST_PAGE_SIZE_DEFAULT
@@ -718,4 +760,5 @@ def toggle_task(task_id):
 
 
 if __name__ == "__main__":
+    logger.info("Starting app on http://localhost:5000")
     app.run(debug=True)
