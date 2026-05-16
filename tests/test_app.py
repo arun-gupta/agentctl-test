@@ -169,6 +169,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "created_at": high["created_at"],
             "urgent": False,
             "color": None,
+            "assignee": None,
         }
     ]
     assert data["total"] == 1
@@ -859,7 +860,7 @@ def test_export_empty_returns_header_only(client):
     r = client.get("/tasks/export")
     assert r.status_code == 200
     lines = r.data.decode().splitlines()
-    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at,urgent"]
+    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at,urgent,assignee"]
 
 
 def test_export_includes_all_tasks(client):
@@ -1693,3 +1694,71 @@ def test_export_includes_urgent_column(client):
     rows = list(reader)
     assert rows[0]["urgent"] == "true"
     assert rows[1]["urgent"] == "false"
+
+# --- assignee field tests ---
+
+def test_create_task_with_assignee(client):
+    r = client.post("/tasks", json={"title": "Task", "assignee": "alice"})
+    assert r.status_code == 201
+    assert r.get_json()["assignee"] == "alice"
+
+
+def test_create_task_invalid_assignee_type(client):
+    r = client.post("/tasks", json={"title": "Task", "assignee": 123})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "assignee must be a string or null"
+
+
+def test_update_task_assignee(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"assignee": "bob"})
+    assert r.status_code == 200
+    assert r.get_json()["assignee"] == "bob"
+
+
+def test_update_task_clear_assignee(client):
+    client.post("/tasks", json={"title": "Task", "assignee": "alice"})
+    r = client.put("/tasks/1", json={"assignee": None})
+    assert r.status_code == 200
+    assert r.get_json()["assignee"] is None
+
+
+def test_list_tasks_filter_by_assignee(client):
+    client.post("/tasks", json={"title": "Task 1", "assignee": "alice"})
+    client.post("/tasks", json={"title": "Task 2", "assignee": "bob"})
+    client.post("/tasks", json={"title": "Task 3", "assignee": "alice"})
+    
+    r = client.get("/tasks?assignee=alice")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 2
+    assert [item["title"] for item in data["items"]] == ["Task 1", "Task 3"]
+
+
+def test_export_includes_assignee(client):
+    import csv, io
+    client.post("/tasks", json={"title": "Task 1", "assignee": "alice"})
+    r = client.get("/tasks/export")
+    assert r.status_code == 200
+    reader = csv.DictReader(io.StringIO(r.data.decode()))
+    rows = list(reader)
+    assert rows[0]["assignee"] == "alice"
+
+
+def test_pagination_with_assignee_filter(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"Task {i}", "assignee": "alice"})
+    
+    r = client.get("/tasks?assignee=alice&page_size=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 3
+    assert data["next_cursor"]
+    assert len(data["items"]) == 2
+    
+    cursor = data["next_cursor"]
+    r = client.get(f"/tasks?assignee=alice&page_size=2&cursor={cursor}")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Task 2"
