@@ -1762,3 +1762,108 @@ def test_pagination_with_assignee_filter(client):
     data = r.get_json()
     assert len(data["items"]) == 1
     assert data["items"][0]["title"] == "Task 2"
+
+
+def test_create_task_color_defaults_to_null(client):
+    r = client.post("/tasks", json={"title": "Task"})
+    assert r.status_code == 201
+    assert r.get_json()["color"] is None
+
+
+def test_create_task_with_color_named(client):
+    r = client.post("/tasks", json={"title": "Task", "color": "red"})
+    assert r.status_code == 201
+    assert r.get_json()["color"] == "red"
+
+
+def test_create_task_with_color_hex(client):
+    r = client.post("/tasks", json={"title": "Task", "color": "#ff0000"})
+    assert r.status_code == 201
+    assert r.get_json()["color"] == "#ff0000"
+
+
+def test_create_task_with_color_blue(client):
+    r = client.post("/tasks", json={"title": "Task", "color": "blue"})
+    assert r.status_code == 201
+    assert r.get_json()["color"] == "blue"
+
+
+def test_create_task_with_color_green(client):
+    r = client.post("/tasks", json={"title": "Task", "color": "green"})
+    assert r.status_code == 201
+    assert r.get_json()["color"] == "green"
+
+
+def test_create_task_invalid_color_type(client):
+    r = client.post("/tasks", json={"title": "Task", "color": 123})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "color must be a string"
+
+
+def test_create_task_blank_color(client):
+    r = client.post("/tasks", json={"title": "Task", "color": "  "})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "color must not be blank"
+
+
+def test_update_task_color(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"color": "purple"})
+    assert r.status_code == 200
+    assert r.get_json()["color"] == "purple"
+
+
+def test_update_task_clear_color(client):
+    client.post("/tasks", json={"title": "Task", "color": "red"})
+    r = client.put("/tasks/1", json={"color": None})
+    assert r.status_code == 200
+    assert r.get_json()["color"] is None
+
+
+def test_list_tasks_filter_by_color(client):
+    client.post("/tasks", json={"title": "Task 1", "color": "red"})
+    client.post("/tasks", json={"title": "Task 2", "color": "blue"})
+    client.post("/tasks", json={"title": "Task 3", "color": "red"})
+    
+    r = client.get("/tasks?color=red")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 2
+    assert [item["title"] for item in data["items"]] == ["Task 1", "Task 3"]
+
+
+def test_list_tasks_filter_by_color_hex(client):
+    client.post("/tasks", json={"title": "Task 1", "color": "#ff0000"})
+    client.post("/tasks", json={"title": "Task 2", "color": "#00ff00"})
+    
+    r = client.get("/tasks?color=%23ff0000")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Task 1"
+
+
+def test_get_task_returns_color(client):
+    client.post("/tasks", json={"title": "Task", "color": "green"})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["color"] == "green"
+
+
+def test_pagination_with_color_filter(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"Task {i}", "color": "blue"})
+    
+    r = client.get("/tasks?color=blue&page_size=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 3
+    assert data["next_cursor"]
+    assert len(data["items"]) == 2
+    
+    cursor = data["next_cursor"]
+    r = client.get(f"/tasks?color=blue&page_size=2&cursor={cursor}")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Task 2"

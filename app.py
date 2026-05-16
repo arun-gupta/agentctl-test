@@ -229,13 +229,9 @@ def _validate_color(color):
     if color is None:
         return None
     if not isinstance(color, str):
-        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
-    if len(color) != 7 or not color.startswith("#"):
-        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
-    try:
-        int(color[1:], 16)
-    except ValueError:
-        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
+        return jsonify({"error": "color must be a string"}), 400
+    if not color.strip():
+        return jsonify({"error": "color must not be blank"}), 400
     return None
 
 
@@ -286,7 +282,7 @@ def _parse_page_size():
     return None, page_size
 
 
-def _cursor_payload(sort, order, priority, urgent_filter, assignee, row):
+def _cursor_payload(sort, order, priority, urgent_filter, color, assignee, row):
     if sort == "priority":
         last_value = _priority_rank(row["priority"])
     elif sort == "title":
@@ -299,6 +295,7 @@ def _cursor_payload(sort, order, priority, urgent_filter, assignee, row):
         "order": order,
         "priority": priority,
         "urgent_filter": urgent_filter,
+        "color": color,
         "assignee": assignee,
         "last_urgent": int(bool(row["urgent"])),
         "last_value": last_value,
@@ -322,7 +319,7 @@ def _decode_cursor(raw_cursor):
     except (ValueError, json.JSONDecodeError):
         return _cursor_error(), None
 
-    required_keys = {"sort", "order", "priority", "urgent_filter", "assignee", "last_urgent", "last_value", "last_id"}
+    required_keys = {"sort", "order", "priority", "urgent_filter", "color", "assignee", "last_urgent", "last_value", "last_id"}
     if not isinstance(payload, dict) or set(payload) != required_keys:
         return _cursor_error(), None
 
@@ -333,6 +330,9 @@ def _decode_cursor(raw_cursor):
         return _cursor_error(), None
 
     if payload["urgent_filter"] is not None and not isinstance(payload["urgent_filter"], bool):
+        return _cursor_error(), None
+
+    if payload["color"] is not None and not isinstance(payload["color"], str):
         return _cursor_error(), None
 
     if payload["assignee"] is not None and not isinstance(payload["assignee"], str):
@@ -395,6 +395,7 @@ def _fetch_task_collection(priority, urgent_filter, color, assignee, sort, order
             or cursor_payload["order"] != order
             or cursor_payload["priority"] != priority
             or cursor_payload["urgent_filter"] != urgent_filter
+            or cursor_payload["color"] != color
             or cursor_payload["assignee"] != assignee
         ):
             return _cursor_error("cursor does not match the current query"), None
@@ -435,7 +436,7 @@ def _fetch_task_collection(priority, urgent_filter, color, assignee, sort, order
 
     has_more = len(rows) > page_size
     items = rows[:page_size]
-    next_cursor = _encode_cursor(_cursor_payload(sort, order, priority, urgent_filter, assignee, items[-1])) if has_more else None
+    next_cursor = _encode_cursor(_cursor_payload(sort, order, priority, urgent_filter, color, assignee, items[-1])) if has_more else None
 
     return None, {
         "items": items,
