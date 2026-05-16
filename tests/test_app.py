@@ -168,6 +168,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "notes": None,
             "created_at": high["created_at"],
             "urgent": False,
+            "color": None,
         }
     ]
     assert data["total"] == 1

@@ -127,7 +127,7 @@ app.config["LIST_PAGE_SIZE_MAX"] = LIST_PAGE_SIZE_MAX
 PRIORITY_LEVELS = {"low", "medium", "high"}
 SORT_FIELDS = {"created_at", "priority", "title"}
 SORT_ORDERS = {"asc", "desc"}
-ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size", "urgent"})
+ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size", "urgent", "color"})
 PRIORITY_SORT_SQL = (
     "CASE priority "
     "WHEN 'low' THEN 1 "
@@ -152,7 +152,8 @@ def get_db():
             "due_date TEXT, "
             "notes TEXT, "
             "created_at TEXT NOT NULL DEFAULT '', "
-            "urgent INTEGER NOT NULL DEFAULT 0)"
+            "urgent INTEGER NOT NULL DEFAULT 0, "
+            "color TEXT)"
         )
         columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
         if "due_date" not in columns:
@@ -167,6 +168,8 @@ def get_db():
             )
         if "urgent" not in columns:
             db.execute("ALTER TABLE tasks ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0")
+        if "color" not in columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN color TEXT")
         db.commit()
     return g.db
 
@@ -189,6 +192,8 @@ def _row(row):
         "notes": row["notes"],
         "created_at": row["created_at"],
         "urgent": bool(row["urgent"]),
+        # Always include color for consistent API shape
+        "color": row["color"],
     }
 
 
@@ -214,6 +219,20 @@ def _validate_query_params(allowed):
     unknown = [k for k in request.args if k not in allowed]
     if unknown:
         return jsonify({"error": f"unsupported query parameter: {unknown[0]}"}), 400
+    return None
+
+
+def _validate_color(color):
+    if color is None:
+        return None
+    if not isinstance(color, str):
+        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
+    if len(color) != 7 or not color.startswith("#"):
+        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
+    try:
+        int(color[1:], 16)
+    except ValueError:
+        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
     return None
 
 
@@ -358,7 +377,7 @@ def _cursor_clause(sort, order, cursor_payload):
     )
 
 
-def _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_cursor):
+def _fetch_task_collection(priority, urgent_filter, color, sort, order, page_size, raw_cursor):
     cursor_error, cursor_payload = _decode_cursor(raw_cursor)
     if cursor_error:
         return cursor_error, None
@@ -383,6 +402,9 @@ def _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_
     if urgent_filter is not None:
         where_parts.append("urgent = ?")
         where_params.append(int(urgent_filter))
+    if color is not None:
+        where_parts.append("color = ?")
+        where_params.append(color)
 
     count_where = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
     total = db.execute(
@@ -449,6 +471,11 @@ def list_tasks():
     sort = request.args.get("sort", "created_at")
     order = request.args.get("order", "asc")
     raw_cursor = request.args.get("cursor")
+    color = request.args.get("color")
+    color = request.args.get("color")
+    color = request.args.get("color")
+    color = request.args.get("color")
+    color = request.args.get("color")
 
     urgent_filter = None
     if "urgent" in request.args:
@@ -477,7 +504,7 @@ def list_tasks():
         if error:
             return error
 
-    error, page = _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_cursor)
+    error, page = _fetch_task_collection(priority, urgent_filter, color, sort, order, page_size, raw_cursor)
     if error:
         return error
 
@@ -528,6 +555,7 @@ def export_tasks():
     sort = request.args.get("sort", "created_at")
     order = request.args.get("order", "asc")
     raw_cursor = request.args.get("cursor")
+    color = request.args.get("color")
 
     urgent_filter = None
     if "urgent" in request.args:
@@ -556,7 +584,7 @@ def export_tasks():
         if error:
             return error
 
-    error, page = _fetch_task_collection(priority, urgent_filter, sort, order, page_size, raw_cursor)
+    error, page = _fetch_task_collection(priority, urgent_filter, color, sort, order, page_size, raw_cursor)
     if error:
         return error
 
@@ -638,11 +666,16 @@ def create_task():
     if not isinstance(urgent, bool):
         return jsonify({"error": "urgent must be a boolean"}), 400
 
+    color = data.get("color")
+    err = _validate_color(color)
+    if err:
+        return err
+
     db = get_db()
     cur = db.execute(
-        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at, urgent) "
-        "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'), ?)",
-        (title, description, priority, due_date, notes, int(urgent)),
+        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at, urgent, color) "
+        "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'), ?, ?)",
+        (title, description, priority, due_date, notes, int(urgent), color),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -705,9 +738,16 @@ def update_task(task_id):
             return jsonify({"error": "urgent must be a boolean"}), 400
     else:
         urgent = task["urgent"]
+    if "color" in data:
+        color = data["color"]
+        err = _validate_color(color)
+        if err:
+            return err
+    else:
+        color = task.get("color")
 
     db.execute(
-        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ?, urgent = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ?, urgent = ?, color = ? WHERE id = ?",
         (
             data.get("title", task["title"]),
             data.get("description", task["description"]),
@@ -716,6 +756,7 @@ def update_task(task_id):
             due_date,
             notes,
             int(urgent),
+            color,
             task_id,
         ),
     )
