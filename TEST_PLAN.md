@@ -205,7 +205,7 @@ Approve or revise the spec after an SDD checkpoint. Requires a paused worktree w
 | `agentctl resume 5` | 🔴 [#5](https://github.com/arun-gupta/agentctl-test/issues/5) | ✅ |
 | `agentctl resume 34 "revision feedback"` | 🔴 [#34](https://github.com/arun-gupta/agentctl-test/issues/34) | ✅ |
 | `agentctl resume --headless 42` | 🟢 [#42](https://github.com/arun-gupta/agentctl-test/issues/42) | ⬜ |
-| `agentctl resume --notify 43` | 🟢 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
+| `agentctl resume --notify 43` | 🔴 [#43](https://github.com/arun-gupta/agentctl-test/issues/43) | ⬜ |
 | `agentctl resume --quiet 25` | 🟢 [#25](https://github.com/arun-gupta/agentctl-test/issues/25) | ⬜ |
 
 > **Prerequisite for ⬜ rows:** run `agentctl start <issue> --sdd=plain` first to create the paused worktree, then run the resume variant against the same issue.
