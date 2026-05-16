@@ -7,7 +7,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from flask import Flask, request, jsonify, g, Response
 
 app = Flask(__name__)
@@ -152,6 +152,7 @@ def get_db():
             "due_date TEXT, "
             "notes TEXT, "
             "created_at TEXT NOT NULL DEFAULT '', "
+            "updated_at TEXT NOT NULL DEFAULT '', "
             "urgent INTEGER NOT NULL DEFAULT 0, "
             "color TEXT)"
         )
@@ -165,6 +166,12 @@ def get_db():
             db.execute(
                 "UPDATE tasks SET created_at = strftime('%Y-%m-%dT%H:%M:%S', 'now') "
                 "WHERE created_at = ''"
+            )
+        if "updated_at" not in columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''")
+            db.execute(
+                "UPDATE tasks SET updated_at = created_at "
+                "WHERE updated_at = ''"
             )
         if "urgent" not in columns:
             db.execute("ALTER TABLE tasks ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0")
@@ -193,6 +200,7 @@ def _row(row):
         "due_date": row["due_date"],
         "notes": row["notes"],
         "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
         "urgent": bool(row["urgent"]),
         # Always include color for consistent API shape
         "color": row["color"],
@@ -600,7 +608,7 @@ def export_tasks():
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "notes", "created_at", "urgent", "assignee"])
+    writer.writerow(["id", "title", "description", "completed", "priority", "due_date", "notes", "created_at", "updated_at", "urgent", "assignee"])
     for row in page["items"]:
         writer.writerow([
             row["id"],
@@ -611,6 +619,7 @@ def export_tasks():
             row["due_date"] if row["due_date"] is not None else "",
             row["notes"] if row["notes"] is not None else "",
             row["created_at"],
+            row["updated_at"],
             str(bool(row["urgent"])).lower(),
             row["assignee"] if row["assignee"] is not None else "",
         ])
@@ -625,6 +634,33 @@ def export_tasks():
             "X-Next-Cursor": page["next_cursor"] or "",
         },
     )
+
+
+@app.route("/tasks/recent", methods=["GET"])
+def get_recent_tasks():
+    error = _validate_query_params(frozenset({"limit"}))
+    if error:
+        return error
+    
+    limit_str = request.args.get("limit", "10")
+    try:
+        limit = int(limit_str)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be a positive integer"}), 400
+    
+    if limit < 1:
+        return jsonify({"error": "limit must be a positive integer"}), 400
+    
+    if limit > 100:
+        return jsonify({"error": "limit must not exceed 100"}), 400
+    
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM tasks ORDER BY updated_at DESC, id DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    
+    return jsonify({"items": [_row(r) for r in rows]})
 
 
 @app.route("/tasks/<int:task_id>", methods=["GET"])
@@ -687,10 +723,11 @@ def create_task():
         return jsonify({"error": "assignee must be a string or null"}), 400
 
     db = get_db()
+    now = datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.%f')
     cur = db.execute(
-        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at, urgent, color, assignee) "
-        "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'), ?, ?, ?)",
-        (title, description, priority, due_date, notes, int(urgent), color, assignee),
+        "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at, updated_at, urgent, color, assignee) "
+        "VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (title, description, priority, due_date, notes, now, now, int(urgent), color, assignee),
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -768,8 +805,9 @@ def update_task(task_id):
     else:
         assignee = task.get("assignee")
 
+    now = datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.%f')
     db.execute(
-        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ?, urgent = ?, color = ?, assignee = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ?, urgent = ?, color = ?, assignee = ?, updated_at = ? WHERE id = ?",
         (
             data.get("title", task["title"]),
             data.get("description", task["description"]),
@@ -780,6 +818,7 @@ def update_task(task_id):
             int(urgent),
             color,
             assignee,
+            now,
             task_id,
         ),
     )
@@ -815,8 +854,9 @@ def toggle_task(task_id):
     if not row:
         return jsonify({"error": "Task not found"}), 404
     new_completed = not bool(row["completed"])
+    now = datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.%f')
     db.execute(
-        "UPDATE tasks SET completed = ? WHERE id = ?", (int(new_completed), task_id)
+        "UPDATE tasks SET completed = ?, updated_at = ? WHERE id = ?", (int(new_completed), now, task_id)
     )
     db.commit()
     row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
