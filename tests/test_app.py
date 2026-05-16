@@ -167,6 +167,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "due_date": None,
             "notes": None,
             "created_at": high["created_at"],
+            "updated_at": high["updated_at"],
             "urgent": False,
             "color": None,
             "assignee": None,
@@ -860,7 +861,7 @@ def test_export_empty_returns_header_only(client):
     r = client.get("/tasks/export")
     assert r.status_code == 200
     lines = r.data.decode().splitlines()
-    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at,urgent,assignee"]
+    assert lines == ["id,title,description,completed,priority,due_date,notes,created_at,updated_at,urgent,assignee"]
 
 
 def test_export_includes_all_tasks(client):
@@ -1867,3 +1868,186 @@ def test_pagination_with_color_filter(client):
     data = r.get_json()
     assert len(data["items"]) == 1
     assert data["items"][0]["title"] == "Task 2"
+
+
+def test_get_recent_tasks_empty(client):
+    r = client.get("/tasks/recent")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["items"] == []
+
+
+def test_get_recent_tasks_default_limit(client):
+    for i in range(15):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    
+    r = client.get("/tasks/recent")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 10
+    # Most recent first (Task 14 is most recent)
+    assert data["items"][0]["title"] == "Task 14"
+    assert data["items"][9]["title"] == "Task 5"
+
+
+def test_get_recent_tasks_custom_limit(client):
+    for i in range(10):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    
+    r = client.get("/tasks/recent?limit=5")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 5
+    assert data["items"][0]["title"] == "Task 9"
+    assert data["items"][4]["title"] == "Task 5"
+
+
+def test_get_recent_tasks_limit_one(client):
+    client.post("/tasks", json={"title": "Task 1"})
+    client.post("/tasks", json={"title": "Task 2"})
+    
+    r = client.get("/tasks/recent?limit=1")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Task 2"
+
+
+def test_get_recent_tasks_limit_exceeds_count(client):
+    client.post("/tasks", json={"title": "Task 1"})
+    client.post("/tasks", json={"title": "Task 2"})
+    
+    r = client.get("/tasks/recent?limit=10")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 2
+
+
+def test_get_recent_tasks_invalid_limit_negative(client):
+    r = client.get("/tasks/recent?limit=-1")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "limit must be a positive integer"
+
+
+def test_get_recent_tasks_invalid_limit_zero(client):
+    r = client.get("/tasks/recent?limit=0")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "limit must be a positive integer"
+
+
+def test_get_recent_tasks_invalid_limit_string(client):
+    r = client.get("/tasks/recent?limit=abc")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "limit must be a positive integer"
+
+
+def test_get_recent_tasks_limit_max(client):
+    for i in range(110):
+        client.post("/tasks", json={"title": f"Task {i}"})
+    
+    r = client.get("/tasks/recent?limit=100")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 100
+
+
+def test_get_recent_tasks_limit_exceeds_max(client):
+    r = client.get("/tasks/recent?limit=101")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "limit must not exceed 100"
+
+
+def test_get_recent_tasks_orders_by_updated_at(client):
+    import time
+    client.post("/tasks", json={"title": "Task 1"})
+    time.sleep(0.01)
+    client.post("/tasks", json={"title": "Task 2"})
+    time.sleep(0.01)
+    client.post("/tasks", json={"title": "Task 3"})
+    time.sleep(0.01)
+    # Update Task 1 to make it most recent
+    client.put("/tasks/1", json={"title": "Task 1 Updated"})
+    
+    r = client.get("/tasks/recent")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 3
+    # Task 1 should be first because it was updated most recently
+    assert data["items"][0]["title"] == "Task 1 Updated"
+    assert data["items"][1]["title"] == "Task 3"
+    assert data["items"][2]["title"] == "Task 2"
+
+
+def test_get_recent_tasks_toggle_updates_order(client):
+    import time
+    client.post("/tasks", json={"title": "Task 1"})
+    time.sleep(0.01)
+    client.post("/tasks", json={"title": "Task 2"})
+    time.sleep(0.01)
+    # Toggle Task 1 to update it
+    client.patch("/tasks/1/toggle")
+    
+    r = client.get("/tasks/recent")
+    assert r.status_code == 200
+    data = r.get_json()
+    # Task 1 should be first because it was toggled (updated) most recently
+    assert data["items"][0]["title"] == "Task 1"
+    assert data["items"][1]["title"] == "Task 2"
+
+
+def test_get_recent_tasks_unsupported_query_param(client):
+    r = client.get("/tasks/recent?invalid=value")
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "unsupported query parameter: invalid"
+
+
+def test_get_recent_tasks_includes_all_fields(client):
+    client.post("/tasks", json={
+        "title": "Test Task",
+        "description": "Test Description",
+        "priority": "high",
+        "due_date": "2024-12-31",
+        "notes": "Test Notes",
+        "urgent": True,
+        "color": "red",
+        "assignee": "John"
+    })
+    
+    r = client.get("/tasks/recent")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 1
+    task = data["items"][0]
+    assert task["title"] == "Test Task"
+    assert task["description"] == "Test Description"
+    assert task["priority"] == "high"
+    assert task["due_date"] == "2024-12-31"
+    assert task["notes"] == "Test Notes"
+    assert task["urgent"] is True
+    assert task["color"] == "red"
+    assert task["assignee"] == "John"
+    assert "created_at" in task
+    assert "updated_at" in task
+
+
+def test_task_includes_updated_at_field(client):
+    r = client.post("/tasks", json={"title": "Task"})
+    assert r.status_code == 201
+    data = r.get_json()
+    assert "updated_at" in data
+    assert data["updated_at"] == data["created_at"]
+
+
+def test_update_task_changes_updated_at(client):
+    import time
+    r1 = client.post("/tasks", json={"title": "Original"})
+    created_at = r1.get_json()["created_at"]
+    updated_at_initial = r1.get_json()["updated_at"]
+    
+    time.sleep(0.01)
+    r2 = client.put("/tasks/1", json={"title": "Updated"})
+    updated_at_after = r2.get_json()["updated_at"]
+    
+    assert updated_at_initial == created_at
+    assert updated_at_after != created_at
+    assert updated_at_after > updated_at_initial
