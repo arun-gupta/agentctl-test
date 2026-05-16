@@ -180,6 +180,20 @@ def _validate_query_params(allowed):
     return None
 
 
+def _validate_color(color):
+    if color is None:
+        return None
+    if not isinstance(color, str):
+        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
+    if len(color) != 7 or not color.startswith("#"):
+        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
+    try:
+        int(color[1:], 16)
+    except ValueError:
+        return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
+    return None
+
+
 def _tasks_order_by(sort, order):
     direction = order.upper()
     if sort == "priority":
@@ -611,8 +625,9 @@ def create_task():
         return jsonify({"error": "urgent must be a boolean"}), 400
 
     color = data.get("color")
-    if color is not None and not isinstance(color, str):
-        return jsonify({"error": "color must be a string or null"}), 400
+    err = _validate_color(color)
+    if err:
+        return err
 
     db = get_db()
     cur = db.execute(
@@ -683,8 +698,9 @@ def update_task(task_id):
         urgent = task["urgent"]
     if "color" in data:
         color = data["color"]
-        if color is not None and not isinstance(color, str):
-            return jsonify({"error": "color must be a string or null"}), 400
+        err = _validate_color(color)
+        if err:
+            return err
     else:
         color = task.get("color")
 
