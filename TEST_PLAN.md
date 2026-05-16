@@ -165,7 +165,7 @@ Start multiple agents concurrently in headless mode using a comma-separated issu
 
 | Variant | Issues | Status |
 |---------|--------|--------|
-| `agentctl start 55,56` | 🟢 [#55](https://github.com/arun-gupta/agentctl-test/issues/55) + 🔴 [#56](https://github.com/arun-gupta/agentctl-test/issues/56) | ⬜ |
+| `agentctl start 55,56` | 🔴 [#55](https://github.com/arun-gupta/agentctl-test/issues/55) + 🔴 [#56](https://github.com/arun-gupta/agentctl-test/issues/56) | ⬜ |
 
 ---
 
