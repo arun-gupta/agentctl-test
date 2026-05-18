@@ -127,7 +127,7 @@ app.config["LIST_PAGE_SIZE_MAX"] = LIST_PAGE_SIZE_MAX
 PRIORITY_LEVELS = {"low", "medium", "high"}
 SORT_FIELDS = {"created_at", "priority", "title"}
 SORT_ORDERS = {"asc", "desc"}
-ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size", "urgent", "color", "assignee"})
+ALLOWED_TASK_COLLECTION_PARAMS = frozenset({"priority", "sort", "order", "cursor", "page_size", "urgent", "color", "assignee", "tag"})
 PRIORITY_SORT_SQL = (
     "CASE priority "
     "WHEN 'low' THEN 1 "
@@ -172,6 +172,24 @@ def get_db():
             db.execute("ALTER TABLE tasks ADD COLUMN color TEXT")
         if "assignee" not in columns:
             db.execute("ALTER TABLE tasks ADD COLUMN assignee TEXT")
+        
+        # Create tags table
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS tags ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "name TEXT NOT NULL UNIQUE)"
+        )
+        
+        # Create task_tags junction table
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS task_tags ("
+            "task_id INTEGER NOT NULL, "
+            "tag_id INTEGER NOT NULL, "
+            "PRIMARY KEY (task_id, tag_id), "
+            "FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE, "
+            "FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE)"
+        )
+        
         db.commit()
     return g.db
 
@@ -183,7 +201,21 @@ def close_db(exc=None):
         db.close()
 
 
+def _get_task_tags(db, task_id):
+    """Fetch all tags for a given task, sorted alphabetically."""
+    rows = db.execute(
+        "SELECT t.name FROM tags t "
+        "JOIN task_tags tt ON t.id = tt.tag_id "
+        "WHERE tt.task_id = ? "
+        "ORDER BY t.name",
+        (task_id,)
+    ).fetchall()
+    return [row["name"] for row in rows]
+
+
 def _row(row):
+    db = get_db()
+    tags = _get_task_tags(db, row["id"])
     return {
         "id": row["id"],
         "title": row["title"],
@@ -197,6 +229,7 @@ def _row(row):
         # Always include color for consistent API shape
         "color": row["color"],
         "assignee": row["assignee"],
+        "tags": tags,
     }
 
 
@@ -237,6 +270,41 @@ def _validate_color(color):
     except ValueError:
         return jsonify({"error": "color must be a hex string like #RRGGBB"}), 400
     return None
+
+
+def _validate_tags(tags):
+    """Validate that tags is a list of non-empty lowercase strings."""
+    if tags is None:
+        return None
+    if not isinstance(tags, list):
+        return jsonify({"error": "tags must be a list of strings"}), 400
+    for tag in tags:
+        if not isinstance(tag, str):
+            return jsonify({"error": "tags must be a list of strings"}), 400
+        if not tag or not tag.strip():
+            return jsonify({"error": "tag values must be non-empty strings"}), 400
+        if tag != tag.lower():
+            return jsonify({"error": "tag values must be lowercase"}), 400
+    return None
+
+
+def _set_task_tags(db, task_id, tags):
+    """Replace all tags for a task with the given list."""
+    # Remove existing tags
+    db.execute("DELETE FROM task_tags WHERE task_id = ?", (task_id,))
+    
+    # Add new tags
+    for tag_name in tags:
+        # Get or create tag
+        tag_row = db.execute("SELECT id FROM tags WHERE name = ?", (tag_name,)).fetchone()
+        if tag_row:
+            tag_id = tag_row["id"]
+        else:
+            cur = db.execute("INSERT INTO tags (name) VALUES (?)", (tag_name,))
+            tag_id = cur.lastrowid
+        
+        # Link tag to task
+        db.execute("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)", (task_id, tag_id))
 
 
 def _tasks_order_by(sort, order):
@@ -384,7 +452,7 @@ def _cursor_clause(sort, order, cursor_payload):
     )
 
 
-def _fetch_task_collection(priority, urgent_filter, color, assignee, sort, order, page_size, raw_cursor):
+def _fetch_task_collection(priority, urgent_filter, color, assignee, tag_filters, sort, order, page_size, raw_cursor):
     cursor_error, cursor_payload = _decode_cursor(raw_cursor)
     if cursor_error:
         return cursor_error, None
@@ -416,6 +484,18 @@ def _fetch_task_collection(priority, urgent_filter, color, assignee, sort, order
     if assignee is not None:
         where_parts.append("assignee = ?")
         where_params.append(assignee)
+
+    # Handle tag filtering - task must have ALL specified tags
+    if tag_filters:
+        for tag in tag_filters:
+            where_parts.append(
+                "EXISTS ("
+                "SELECT 1 FROM task_tags tt "
+                "JOIN tags t ON tt.tag_id = t.id "
+                "WHERE tt.task_id = tasks.id AND t.name = ?"
+                ")"
+            )
+            where_params.append(tag)
 
     count_where = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
     total = db.execute(
@@ -484,6 +564,9 @@ def list_tasks():
     raw_cursor = request.args.get("cursor")
     color = request.args.get("color")
     assignee = request.args.get("assignee")
+    
+    # Parse tag filters (can be multiple ?tag=work&tag=urgent)
+    tag_filters = request.args.getlist("tag")
 
     urgent_filter = None
     if "urgent" in request.args:
@@ -512,7 +595,7 @@ def list_tasks():
         if error:
             return error
 
-    error, page = _fetch_task_collection(priority, urgent_filter, color, assignee, sort, order, page_size, raw_cursor)
+    error, page = _fetch_task_collection(priority, urgent_filter, color, assignee, tag_filters, sort, order, page_size, raw_cursor)
     if error:
         return error
 
@@ -565,6 +648,9 @@ def export_tasks():
     raw_cursor = request.args.get("cursor")
     color = request.args.get("color")
     assignee = request.args.get("assignee")
+    
+    # Parse tag filters (can be multiple ?tag=work&tag=urgent)
+    tag_filters = request.args.getlist("tag")
 
     urgent_filter = None
     if "urgent" in request.args:
@@ -593,7 +679,7 @@ def export_tasks():
         if error:
             return error
 
-    error, page = _fetch_task_collection(priority, urgent_filter, color, assignee, sort, order, page_size, raw_cursor)
+    error, page = _fetch_task_collection(priority, urgent_filter, color, assignee, tag_filters, sort, order, page_size, raw_cursor)
     if error:
         return error
 
@@ -685,14 +771,24 @@ def create_task():
     if assignee is not None and not isinstance(assignee, str):
         return jsonify({"error": "assignee must be a string or null"}), 400
 
+    tags = data.get("tags", [])
+    error = _validate_tags(tags)
+    if error:
+        return error
+
     db = get_db()
     cur = db.execute(
         "INSERT INTO tasks (title, description, completed, priority, due_date, notes, created_at, urgent, color, assignee) "
         "VALUES (?, ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now'), ?, ?, ?)",
         (title, description, priority, due_date, notes, int(urgent), color, assignee),
     )
+    task_id = cur.lastrowid
+    
+    # Set tags
+    _set_task_tags(db, task_id, tags)
+    
     db.commit()
-    row = db.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     return jsonify(_row(row)), 201
 
 
@@ -766,6 +862,13 @@ def update_task(task_id):
             return jsonify({"error": "assignee must be a string or null"}), 400
     else:
         assignee = task.get("assignee")
+
+    if "tags" in data:
+        tags = data["tags"]
+        error = _validate_tags(tags)
+        if error:
+            return error
+        _set_task_tags(db, task_id, tags)
 
     db.execute(
         "UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ?, due_date = ?, notes = ?, urgent = ?, color = ?, assignee = ? WHERE id = ?",

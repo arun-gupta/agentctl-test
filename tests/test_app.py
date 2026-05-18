@@ -170,6 +170,7 @@ def test_list_tasks_can_filter_by_priority(client):
             "urgent": False,
             "color": None,
             "assignee": None,
+            "tags": [],
         }
     ]
     assert data["total"] == 1
@@ -1762,3 +1763,216 @@ def test_pagination_with_assignee_filter(client):
     data = r.get_json()
     assert len(data["items"]) == 1
     assert data["items"][0]["title"] == "Task 2"
+
+
+# --- tags field tests ---
+
+def test_create_task_without_tags_defaults_to_empty_list(client):
+    r = client.post("/tasks", json={"title": "Task"})
+    assert r.status_code == 201
+    assert r.get_json()["tags"] == []
+
+
+def test_create_task_with_empty_tags_list(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": []})
+    assert r.status_code == 201
+    assert r.get_json()["tags"] == []
+
+
+def test_create_task_with_single_tag(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["work"]})
+    assert r.status_code == 201
+    assert r.get_json()["tags"] == ["work"]
+
+
+def test_create_task_with_multiple_tags(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["work", "urgent", "personal"]})
+    assert r.status_code == 201
+    tags = r.get_json()["tags"]
+    assert len(tags) == 3
+    assert "work" in tags
+    assert "urgent" in tags
+    assert "personal" in tags
+
+
+def test_create_task_tags_sorted_alphabetically(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["zebra", "alpha", "beta"]})
+    assert r.status_code == 201
+    assert r.get_json()["tags"] == ["alpha", "beta", "zebra"]
+
+
+def test_create_task_tags_not_a_list_rejected(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": "work"})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tags must be a list of strings"
+
+
+def test_create_task_tags_with_integer_rejected(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": [123]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tags must be a list of strings"
+
+
+def test_create_task_tags_with_empty_string_rejected(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": [""]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tag values must be non-empty strings"
+
+
+def test_create_task_tags_with_whitespace_only_rejected(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["  "]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tag values must be non-empty strings"
+
+
+def test_create_task_tags_must_be_lowercase(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["Work"]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tag values must be lowercase"
+
+
+def test_create_task_tags_with_uppercase_rejected(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["URGENT"]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tag values must be lowercase"
+
+
+def test_create_task_tags_with_mixed_case_rejected(client):
+    r = client.post("/tasks", json={"title": "Task", "tags": ["WoRk"]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tag values must be lowercase"
+
+
+def test_get_task_includes_tags(client):
+    client.post("/tasks", json={"title": "Task", "tags": ["work", "urgent"]})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    tags = r.get_json()["tags"]
+    assert len(tags) == 2
+    assert "work" in tags
+    assert "urgent" in tags
+
+
+def test_get_task_with_no_tags_returns_empty_list(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["tags"] == []
+
+
+def test_list_tasks_includes_tags(client):
+    client.post("/tasks", json={"title": "A", "tags": ["work"]})
+    client.post("/tasks", json={"title": "B", "tags": []})
+    r = client.get("/tasks")
+    assert r.status_code == 200
+    items = r.get_json()["items"]
+    assert items[0]["tags"] == ["work"]
+    assert items[1]["tags"] == []
+
+
+def test_update_task_tags_replaces_all_tags(client):
+    client.post("/tasks", json={"title": "Task", "tags": ["work", "urgent"]})
+    r = client.put("/tasks/1", json={"tags": ["personal"]})
+    assert r.status_code == 200
+    assert r.get_json()["tags"] == ["personal"]
+
+
+def test_update_task_tags_to_empty_list(client):
+    client.post("/tasks", json={"title": "Task", "tags": ["work"]})
+    r = client.put("/tasks/1", json={"tags": []})
+    assert r.status_code == 200
+    assert r.get_json()["tags"] == []
+
+
+def test_update_task_omitting_tags_preserves_existing(client):
+    client.post("/tasks", json={"title": "Task", "tags": ["work", "urgent"]})
+    r = client.put("/tasks/1", json={"title": "Updated"})
+    assert r.status_code == 200
+    tags = r.get_json()["tags"]
+    assert len(tags) == 2
+    assert "work" in tags
+    assert "urgent" in tags
+
+
+def test_update_task_tags_validation_applies(client):
+    client.post("/tasks", json={"title": "Task"})
+    r = client.put("/tasks/1", json={"tags": ["INVALID"]})
+    assert r.status_code == 400
+    assert r.get_json()["error"] == "tag values must be lowercase"
+
+
+def test_filter_tasks_by_single_tag(client):
+    client.post("/tasks", json={"title": "Work task", "tags": ["work"]})
+    client.post("/tasks", json={"title": "Personal task", "tags": ["personal"]})
+    client.post("/tasks", json={"title": "Both", "tags": ["work", "personal"]})
+    
+    r = client.get("/tasks?tag=work")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 2
+    titles = [item["title"] for item in data["items"]]
+    assert "Work task" in titles
+    assert "Both" in titles
+    assert "Personal task" not in titles
+
+
+def test_filter_tasks_by_multiple_tags_requires_all(client):
+    client.post("/tasks", json={"title": "Work only", "tags": ["work"]})
+    client.post("/tasks", json={"title": "Urgent only", "tags": ["urgent"]})
+    client.post("/tasks", json={"title": "Both", "tags": ["work", "urgent"]})
+    
+    r = client.get("/tasks?tag=work&tag=urgent")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Both"
+
+
+def test_filter_tasks_by_tag_no_matches(client):
+    client.post("/tasks", json={"title": "Task", "tags": ["work"]})
+    
+    r = client.get("/tasks?tag=personal")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 0
+    assert data["items"] == []
+
+
+def test_filter_tasks_by_tag_with_no_tags(client):
+    client.post("/tasks", json={"title": "No tags"})
+    
+    r = client.get("/tasks?tag=work")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 0
+
+
+def test_filter_tasks_combines_with_priority_filter(client):
+    client.post("/tasks", json={"title": "High work", "priority": "high", "tags": ["work"]})
+    client.post("/tasks", json={"title": "Low work", "priority": "low", "tags": ["work"]})
+    client.post("/tasks", json={"title": "High personal", "priority": "high", "tags": ["personal"]})
+    
+    r = client.get("/tasks?priority=high&tag=work")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "High work"
+
+
+def test_tags_persist_across_other_updates(client):
+    client.post("/tasks", json={"title": "Task", "tags": ["work"]})
+    client.put("/tasks/1", json={"priority": "high", "completed": True})
+    r = client.get("/tasks/1")
+    assert r.status_code == 200
+    assert r.get_json()["tags"] == ["work"]
+
+
+def test_tags_included_in_paginated_response(client):
+    for i in range(3):
+        client.post("/tasks", json={"title": f"Task {i}", "tags": [f"tag{i}"]})
+    
+    r = client.get("/tasks?page_size=2")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert len(data["items"]) == 2
+    assert all("tags" in item for item in data["items"])
